@@ -1,0 +1,195 @@
+{
+ "hub": {
+  "name": "moddi",
+  "promptpay": "0812345678",
+  "promptpay_name": "moddi (ตัวอย่าง)"
+ },
+ "games": [
+  {
+   "id": "hero-quest",
+   "title": "Hero Quest",
+   "platforms": [
+    "pc"
+   ],
+   "engine": "RPG Maker MZ",
+   "genre": "RPG",
+   "mods": [
+    {
+     "id": "hq-a",
+     "tier": 1,
+     "install": "moddi",
+     "file": "mods/hero-quest-sample.moddi.json",
+     "progress": 100,
+     "version": "1.0",
+     "updated": "2026-11-09",
+     "translator": {
+      "name": "ทีมแปลตัวอย่าง A",
+      "page_url": "https://example.com/team-a",
+      "verified": true,
+      "promptpay": "0899999999"
+     },
+     "stats": {
+      "total": 24,
+      "fast": 16,
+      "premium": 4,
+      "human": 4
+     }
+    }
+   ],
+   "from_lang": "en"
+  },
+  {
+   "id": "sky-farm",
+   "title": "Sky Farm Story",
+   "platforms": [
+    "pc"
+   ],
+   "engine": "Unity",
+   "genre": "Simulation",
+   "mods": [
+    {
+     "id": "sf-b",
+     "tier": 1,
+     "install": "extract",
+     "file": "mods/sky-farm-sample.zip",
+     "progress": 85,
+     "version": "0.9",
+     "updated": "2026-10-20",
+     "steps": [
+      "ไฟล์นี้ใช้กับเกมเวอร์ชัน 1.2 ขึ้นไปเท่านั้น"
+     ],
+     "translator": {
+      "name": "ผู้แปลตัวอย่าง B",
+      "page_url": "https://example.com/b",
+      "verified": true,
+      "promptpay": "1234567890123"
+     },
+     "stats": {
+      "total": 3120,
+      "fast": 1720,
+      "premium": 980,
+      "human": 310
+     }
+    }
+   ],
+   "from_lang": "en"
+  },
+  {
+   "id": "dragon-saga",
+   "title": "Dragon Saga Remastered",
+   "platforms": [
+    "pc"
+   ],
+   "engine": "Unreal",
+   "genre": "Action RPG",
+   "mods": [
+    {
+     "id": "ds-c",
+     "tier": 2,
+     "install": "modmanager",
+     "download_url": "https://example.com/nexus-post",
+     "progress": 100,
+     "updated": "2026-09-01",
+     "translator": {
+      "name": "ผู้แปลตัวอย่าง C",
+      "page_url": "https://example.com/c",
+      "verified": false
+     },
+     "stats": {
+      "total": 14112,
+      "fast": 0,
+      "premium": 14112,
+      "human": 0
+     }
+    }
+   ],
+   "from_lang": "en"
+  },
+  {
+   "id": "pocket-chef",
+   "title": "Pocket Chef",
+   "platforms": [
+    "mobile"
+   ],
+   "engine": "Unity",
+   "genre": "Casual",
+   "mods": [
+    {
+     "id": "pc-d",
+     "tier": 2,
+     "install": "android_files",
+     "download_url": "https://example.com/d-post",
+     "progress": 60,
+     "updated": "2026-08-15",
+     "translator": {
+      "name": "ผู้แปลตัวอย่าง D",
+      "page_url": "https://example.com/d",
+      "verified": false
+     },
+     "stats": {
+      "total": 860,
+      "fast": 516,
+      "premium": 0,
+      "human": 0
+     }
+    }
+   ],
+   "from_lang": "en"
+  },
+  {
+   "id": "night-detective",
+   "title": "Night Detective",
+   "platforms": [
+    "pc",
+    "mobile"
+   ],
+   "engine": "Ren'Py",
+   "genre": "Visual Novel",
+   "mods": [
+    {
+     "id": "nd-e",
+     "tier": 3,
+     "install": "other",
+     "page_url": "https://example.com/e-page",
+     "progress": 100,
+     "updated": "2026-07-01",
+     "translator": {
+      "name": "เพจแปลตัวอย่าง E",
+      "page_url": "https://example.com/e-page",
+      "verified": false
+     }
+    },
+    {
+     "id": "nd-f",
+     "tier": 4,
+     "install": "other",
+     "page_url": "https://example.com/hidden",
+     "translator": {
+      "name": "ไม่อนุญาต (ต้องไม่โผล่)",
+      "page_url": "https://example.com/hidden"
+     }
+    }
+   ],
+   "from_lang": "ja"
+  },
+  {
+   "id": "hidden-game",
+   "title": "Hidden Game (ต้องไม่โผล่)",
+   "platforms": [
+    "pc"
+   ],
+   "engine": "Unity",
+   "mods": [
+    {
+     "id": "hg",
+     "tier": 4,
+     "install": "other",
+     "translator": {
+      "name": "x"
+     }
+    }
+   ],
+   "from_lang": "en"
+  }
+ ]
+}

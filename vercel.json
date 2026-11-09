@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "",
+  "outputDirectory": "web/site",
+  "framework": null,
+  "headers": [
+    { "source": "/catalog.json", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+    { "source": "/(README-แอดมิน.md|supabase-setup.sql)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
+  ]
+}

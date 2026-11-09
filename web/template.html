@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="data:image/png;base64,__FAVICON__">
+<title>moddi — คลังเกมแปลไทย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Warm dark ramp — the night-time RPG dialogue window */
+  :root {
+    --deep:#12110f; --bg:#161513; --card:#1c1a18; --raised:#262421;
+    --line:rgba(239,233,222,.08); --line2:rgba(239,233,222,.14);
+    --t1:#efe9de; --t2:#aaa398; --t3:#8a847a;
+    --acc:#9474e6; --acc-text:#b8a2f2;
+    --pos:#4cc38a; --neg:#e5484d;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --sans:"IBM Plex Sans Thai","Sarabun","Leelawadee UI",Tahoma,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--bg); color:var(--t1); font:400 15px/1.6 var(--sans); }
+  a { color:inherit; }
+  .ic { width:16px; height:16px; flex:none; }
+  /* กันข้อความยาวๆ ดันหน้าจอให้กว้างเกิน */
+  main, .page, .studio, .panel, .stat, .need, .gp > *, .acct > *, .mod, .note, .srcrow, .rf, .rf .card { min-width:0; }
+  .panel, .stat, .note, .srcrow, .ed td, .rf .src, .rf .cur, .dlg, .kv dd { overflow-wrap:anywhere; word-break:break-word; }
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .t2 { color:var(--t2); } .t3 { color:var(--t3); }
+  .hide { display:none !important; }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; border-radius:6px; }
+
+  /* nav */
+  header.top { position:sticky; top:0; z-index:20; background:var(--bg); border-bottom:1px solid var(--line); }
+  .top .in { max-width:1200px; margin:0 auto; height:56px; padding:0 24px; display:flex; align-items:center; gap:32px; }
+  .brand { font-weight:600; font-size:17px; text-decoration:none; letter-spacing:0; display:flex; align-items:center; gap:8px; }
+  .brand img { width:28px; height:28px; border-radius:7px; display:block; }
+  .links { display:flex; gap:4px; flex:1; }
+  .links a { text-decoration:none; color:var(--t2); padding:6px 12px; border-radius:8px; font-size:14px; transition:color .15s var(--ease), background-color .15s var(--ease); }
+  .links a:hover { color:var(--t1); }
+  .links a.on { color:var(--t1); background:var(--raised); }
+  .auth { display:flex; align-items:center; gap:8px; font-size:14px; }
+  .linkbtn { background:none; border:0; color:var(--t2); font:inherit; font-size:14px; cursor:pointer; padding:6px 8px; border-radius:8px; display:inline-flex; gap:8px; align-items:center; transition:color .15s var(--ease); }
+  .linkbtn:hover { color:var(--t1); }
+  .avatar { width:28px; height:28px; border-radius:50%; background:var(--raised); border:1px solid var(--line2); display:grid; place-items:center; font-size:12px; font-weight:500; overflow:hidden; }
+  .avatar img { width:100%; height:100%; object-fit:cover; }
+  .menubtn { display:none; }
+
+  main { max-width:1200px; margin:0 auto; padding:0 24px 96px; }
+  section.page { animation:enter .4s var(--ease) both; }
+  @keyframes enter { from { opacity:0; transform:translateY(8px); } }
+
+  /* buttons and fields */
+  .btn { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 16px; border-radius:8px; font:500 14px/1 var(--sans); cursor:pointer; text-decoration:none; border:1px solid transparent; transition:background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .12s var(--ease); white-space:nowrap; }
+  .btn:active { transform:scale(.98); }
+  .btn.pri { background:var(--t1); color:var(--bg); box-shadow:inset 0 1px 0 rgba(255,255,255,.4); }
+  .btn.pri:hover { background:#fff; }
+  .btn.sec { background:var(--raised); color:var(--t1); border-color:var(--line); }
+  .btn.sec:hover { border-color:var(--line2); }
+  .btn.quiet { background:none; color:var(--t2); padding:0 8px; }
+  .btn.quiet:hover { color:var(--t1); }
+  .btn.danger { background:none; color:#f0a1a3; border-color:rgba(229,72,77,.35); }
+  .btn:disabled { opacity:.4; cursor:default; transform:none; }
+  .btn.lg { height:48px; padding:0 20px; font-size:15px; }
+  input[type=text], input[type=search], input[type=password], select, textarea {
+    background:var(--deep); color:var(--t1); border:1px solid var(--line2); border-radius:8px; height:40px; padding:0 12px; font:400 14px var(--sans); width:100%; transition:border-color .15s var(--ease);
+  }
+  textarea { height:auto; padding:8px 12px; line-height:1.6; resize:vertical; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--acc); }
+  label.f { display:grid; gap:8px; font-size:13px; color:var(--t2); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+  /* hero */
+  .hero { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; padding:96px 0 80px; }
+  .hero h1 { font-size:44px; line-height:1.25; font-weight:500; margin:0 0 16px; letter-spacing:-.01em; }
+  .hero p.sub { font-size:18px; line-height:1.7; color:var(--t2); margin:0 0 32px; max-width:34rem; }
+  .searchbox { position:relative; max-width:30rem; }
+  .searchbox .ic { position:absolute; left:16px; top:16px; color:var(--t3); }
+  .searchbox input { height:48px; padding-left:44px; font-size:15px; }
+  .hero .more { margin-top:16px; font-size:14px; }
+
+  /* the moment: dialogue window */
+  .dlg { background:var(--deep); border:1px solid var(--line2); border-radius:16px; padding:24px; position:relative; box-shadow:0 24px 48px rgba(0,0,0,.35); }
+  .dlg .who { display:inline-block; font-size:13px; color:var(--acc-text); margin-bottom:12px; }
+  .dlg .src { font-family:var(--mono); font-size:13px; line-height:1.7; color:var(--t3); margin:0 0 12px; padding-bottom:12px; border-bottom:1px dashed var(--line2); }
+  .dlg .dst { font-size:22px; line-height:1.6; margin:0; }
+  .dlg .foot { display:flex; justify-content:space-between; align-items:center; margin-top:24px; font-size:12px; color:var(--t3); }
+  .tri { width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:8px solid var(--acc); display:inline-block; }
+  .dlg-wrap { position:relative; }
+  .dlg-wrap .ghost { position:absolute; inset:24px -16px -16px 24px; border:1px solid var(--line); border-radius:16px; background:var(--card); z-index:-1; }
+
+  /* catalog */
+  .sechead { display:flex; align-items:end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 24px; }
+  .sechead h2 { font-size:24px; font-weight:500; margin:0; line-height:1.3; }
+  .sechead .count { font-size:13px; color:var(--t3); margin-left:8px; }
+  .seg { display:inline-flex; background:var(--deep); border:1px solid var(--line); border-radius:10px; padding:4px; gap:4px; }
+  .seg button { background:none; border:0; color:var(--t2); font:400 13px var(--sans); height:28px; padding:0 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:color .15s var(--ease), background-color .15s var(--ease); }
+  .seg button.on { background:var(--raised); color:var(--t1); box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+  .toggle { display:inline-flex; align-items:center; gap:8px; font-size:13px; color:var(--t2); cursor:pointer; user-select:none; }
+  .toggle .sw { width:28px; height:16px; border-radius:8px; background:var(--raised); border:1px solid var(--line2); position:relative; transition:background-color .15s var(--ease); }
+  .toggle .sw::after { content:""; position:absolute; top:2px; left:2px; width:10px; height:10px; border-radius:50%; background:var(--t3); transition:transform .15s var(--ease), background-color .15s var(--ease); }
+  .toggle.on .sw { background:rgba(148,116,230,.3); } .toggle.on .sw::after { transform:translateX(12px); background:var(--acc); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .game { display:flex; flex-direction:column; gap:12px; padding:20px; background:var(--card); border:1px solid var(--line); border-radius:12px; text-decoration:none; transition:border-color .15s var(--ease), background-color .15s var(--ease); min-height:148px; }
+  .game:hover { border-color:var(--line2); background:#201e1b; }
+  .game h3 { margin:0; font-size:17px; font-weight:500; line-height:1.4; }
+  .game .meta { font-size:12px; color:var(--t3); display:flex; gap:12px; align-items:center; }
+  .game .meta span { display:inline-flex; align-items:center; gap:4px; }
+  .game .meta .ic { width:14px; height:14px; }
+  .game .st { margin-top:auto; display:flex; justify-content:space-between; align-items:center; font-size:13px; color:var(--t2); }
+  .dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:8px; vertical-align:1px; background:var(--t3); }
+  .dot.t1 { background:var(--acc); } .dot.t2 { background:var(--t2); } .dot.t3 { background:transparent; border:1px solid var(--t3); }
+  .game { padding:0; overflow:hidden; gap:0; }
+  .game .cv { aspect-ratio:460/215; background:var(--deep); border-bottom:1px solid var(--line); position:relative; overflow:hidden; }
+  .game .cv img { width:100%; height:100%; object-fit:cover; display:block; }
+  .game .cv .fb { position:absolute; inset:0; display:flex; align-items:flex-end; padding:12px 20px; font:500 56px/1 var(--mono); color:rgba(239,233,222,.12); }
+  .game .cv .lang { position:absolute; top:12px; right:12px; font:500 11px var(--mono); background:rgba(18,17,15,.85); border:1px solid var(--line2); border-radius:6px; padding:2px 8px; color:var(--t1); }
+  .game .gb { padding:16px 20px 20px; display:flex; flex-direction:column; gap:12px; flex:1; }
+  .mix { display:grid; gap:8px; }
+  .mix .r { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; font-size:12px; color:var(--t2); }
+  .mix .r .n { color:var(--t3); font-family:var(--mono); } .mix .r .p { font-family:var(--mono); color:var(--t1); min-width:40px; text-align:right; }
+  .mix .b { grid-column:1/-1; height:4px; background:var(--raised); border-radius:2px; overflow:hidden; }
+  .mix .b i { display:block; height:100%; border-radius:2px; }
+  .c-f { background:var(--t2); } .c-p { background:var(--acc); } .c-h { background:var(--pos); }
+  .tot { display:flex; justify-content:space-between; font-size:12px; color:var(--t3); padding-top:12px; border-top:1px solid var(--line); margin-top:auto; }
+  .stack { display:flex; height:8px; border-radius:4px; overflow:hidden; background:var(--raised); margin-top:16px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--t2); margin-top:8px; }
+  .legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; vertical-align:0; }
+  .engcard { background:var(--deep); border:1px solid var(--line); border-radius:12px; padding:20px; }
+  .engcard .l { font-size:12px; color:var(--t3); }
+  .engcard .eh { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+  .engcard .en { font-size:20px; font-weight:500; margin-top:4px; }
+  .engcard .ep { font-size:28px; font-weight:500; margin-top:4px; }
+  .engcard .bar { margin-top:16px; }
+  .engcard .ecols { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; margin-top:16px; }
+  .engcard ul { list-style:none; margin:8px 0 0; padding:0; display:grid; gap:6px; font-size:13px; color:var(--t2); }
+  .engcard li { display:flex; gap:8px; align-items:flex-start; } .engcard li .ic { width:14px; height:14px; margin-top:3px; color:var(--pos); }
+  .engcard ul.no li .ic { color:var(--t3); }
+  .olsteps { display:flex; gap:16px; flex-wrap:wrap; width:100%; font-size:13px; color:var(--t3); margin-bottom:4px; }
+  .olsteps span { display:inline-flex; align-items:center; gap:6px; }
+  .olsteps b { width:18px; height:18px; border-radius:50%; border:1px solid var(--line2); display:inline-grid; place-items:center; font:500 11px var(--mono); }
+  .olsteps .done { color:var(--pos); } .olsteps .now { color:var(--t1); } .olsteps .now b { border-color:var(--acc); color:var(--acc-text); }
+  .modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .modes button { text-align:left; background:var(--deep); border:1px solid var(--line2); border-radius:12px; padding:16px; color:var(--t1); font:inherit; cursor:pointer; display:grid; gap:4px; transition:border-color .15s var(--ease), background-color .15s var(--ease); }
+  .modes button:hover { border-color:rgba(239,233,222,.24); }
+  .modes button.on { border-color:var(--acc); background:#1d1a24; box-shadow:inset 0 0 0 1px var(--acc); }
+  .modes b { font-weight:500; font-size:15px; } .modes span { font-size:13px; color:var(--t2); line-height:1.5; }
+  .modes .tag { font:500 11px var(--mono); color:var(--t3); margin-top:4px; }
+  .models { display:grid; gap:8px; margin-top:16px; }
+  .models label { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:12px; align-items:center; padding:12px 16px; border:1px solid var(--line); border-radius:8px; background:var(--deep); cursor:pointer; }
+  .models label:has(input:checked) { border-color:var(--acc); }
+  .models input { accent-color:var(--acc); }
+  .models .nm { font-size:14px; } .models .ps { font-size:12px; color:var(--t3); display:block; }
+  .models .pr { font:500 14px var(--mono); text-align:right; } .models .pr small { display:block; font-size:11px; color:var(--t3); font-weight:400; }
+  .rf { max-width:880px; margin:0 auto; padding-top:32px; }
+  .rf .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; margin-top:16px; }
+  .rf .lbl { font-size:12px; color:var(--t3); margin-bottom:8px; display:flex; justify-content:space-between; gap:8px; }
+  .rf .src { font-family:var(--mono); font-size:15px; line-height:1.7; white-space:pre-wrap; background:var(--deep); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  .rf .cur { font-size:17px; line-height:1.7; white-space:pre-wrap; padding:12px 16px; border-left:2px solid var(--line2); }
+  .rf textarea { font-size:17px; min-height:96px; }
+  .rf .pos { font-family:var(--mono); font-size:12px; color:var(--t3); }
+  .kbd { font:500 11px var(--mono); border:1px solid var(--line2); border-bottom-width:2px; border-radius:4px; padding:0 6px; color:var(--t2); }
+  .empty { padding:64px 24px; text-align:center; color:var(--t2); border:1px dashed var(--line2); border-radius:12px; grid-column:1/-1; }
+  .empty b { display:block; color:var(--t1); font-weight:500; margin-bottom:8px; }
+
+  /* game page */
+  .back { display:inline-flex; align-items:center; gap:8px; margin:32px 0 24px; font-size:14px; color:var(--t2); text-decoration:none; }
+  .back:hover { color:var(--t1); }
+  .gp { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:32px; align-items:start; }
+  .gp h1 { font-size:32px; font-weight:500; line-height:1.3; margin:0 0 8px; }
+  .gp .lead { color:var(--t2); margin:0 0 32px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; }
+  .panel + .panel { margin-top:16px; }
+  .side { position:sticky; top:80px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:8px 16px; font-size:14px; margin:0; }
+  .kv dt { color:var(--t3); } .kv dd { margin:0; }
+  .mod .head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .mod .name { font-size:17px; font-weight:500; display:flex; align-items:center; gap:8px; }
+  .mod .name .ic { color:var(--acc-text); }
+  .mod .sub { font-size:12px; color:var(--t3); margin-top:4px; }
+  .access { font-size:13px; color:var(--t2); display:flex; align-items:center; }
+  .bar { height:4px; background:var(--raised); border-radius:2px; overflow:hidden; margin-top:16px; }
+  .bar i { display:block; height:100%; background:var(--acc); border-radius:2px; }
+  .barlabel { display:flex; justify-content:space-between; font-size:12px; color:var(--t3); margin-top:8px; }
+  .mod h4 { font-size:14px; font-weight:500; margin:24px 0 12px; color:var(--t2); }
+  ol.steps { margin:0; padding:0; list-style:none; counter-reset:s; display:grid; gap:8px; }
+  ol.steps li { counter-increment:s; display:grid; grid-template-columns:24px 1fr; gap:12px; font-size:14px; line-height:1.7; }
+  ol.steps li::before { content:counter(s); font-family:var(--mono); font-size:12px; color:var(--t3); width:24px; height:24px; border:1px solid var(--line2); border-radius:6px; display:grid; place-items:center; margin-top:2px; }
+  .note { font-size:13px; line-height:1.7; color:var(--t2); background:var(--deep); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin-top:16px; display:flex; gap:12px; }
+  .note .ic { margin-top:3px; color:var(--t3); }
+  .note.ok { border-color:rgba(76,195,138,.25); color:#bfe8d2; } .note.ok .ic { color:var(--pos); }
+  .note.bad { border-color:rgba(229,72,77,.3); color:#f3c0c2; } .note.bad .ic { color:var(--neg); }
+  .note.warn { border-color:rgba(148,116,230,.35); color:#d6cbf5; } .note.warn .ic { color:var(--acc); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:24px; padding-top:24px; border-top:1px solid var(--line); }
+  .actions .spacer { flex:1; }
+  .ginfo { margin-top:16px; }
+
+  /* support */
+  .qrwrap { display:grid; grid-template-columns:208px 1fr; gap:24px; margin-top:16px; align-items:start; }
+  .qr { background:#f7f4ee; color:#1f1b16; border-radius:12px; padding:16px; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,.3); }
+  .qr .pp { font:500 12px var(--sans); color:#5e554a; margin-bottom:8px; }
+  .qr img { width:176px; height:176px; image-rendering:pixelated; display:block; margin:0 auto; }
+  .qr small { display:block; margin-top:8px; font-size:12px; color:#5e554a; }
+  .amts { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 0; }
+  .amts button { height:32px; padding:0 12px; border-radius:8px; background:var(--raised); border:1px solid var(--line); color:var(--t1); font:400 13px var(--mono); cursor:pointer; }
+  .amts button.on { border-color:var(--acc); color:var(--acc-text); }
+
+  /* tables */
+  table.tiers { width:100%; border-collapse:collapse; font-size:14px; }
+  table.tiers td { padding:16px 0; border-top:1px solid var(--line); vertical-align:top; line-height:1.7; }
+  table.tiers td:first-child { width:160px; color:var(--t2); padding-right:16px; }
+  table.tiers b { font-weight:500; }
+
+  /* translate (web) */
+  .tw { display:grid; grid-template-columns:1fr 1.1fr; gap:64px; align-items:center; padding:80px 0; }
+  .tw h1 { font-size:36px; font-weight:500; line-height:1.3; margin:0 0 16px; }
+  .tw ol.steps { margin:32px 0; }
+  .studio-mini { background:var(--deep); border:1px solid var(--line2); border-radius:16px; overflow:hidden; box-shadow:0 24px 48px rgba(0,0,0,.35); }
+  .studio-mini .bar2 { height:40px; display:flex; align-items:center; gap:8px; padding:0 16px; border-bottom:1px solid var(--line); font-size:12px; color:var(--t3); }
+  .studio-mini .r { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid var(--line); }
+  .studio-mini .r > div { padding:12px 16px; font-size:13px; line-height:1.6; }
+  .studio-mini .r > div:first-child { font-family:var(--mono); font-size:12px; color:var(--t3); border-right:1px solid var(--line); }
+  .studio-mini .r.sel { background:var(--raised); box-shadow:inset 2px 0 0 var(--acc); }
+  .studio-mini .ft { display:flex; justify-content:space-between; padding:12px 16px; font-size:12px; color:var(--t3); }
+
+  /* studio (app) */
+  .studio { padding-top:32px; display:grid; gap:16px; }
+  .studio h1 { font-size:28px; font-weight:500; margin:0 0 8px; }
+  .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-top:24px; }
+  .stat { background:var(--deep); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .stat .l { font-size:12px; color:var(--t3); } .stat .v { font-size:24px; font-weight:500; margin-top:4px; line-height:1.3; }
+  .stat .v.sm { font-size:15px; margin-top:8px; }
+  .ptitle { font-size:15px; font-weight:500; margin:0 0 16px; display:flex; justify-content:space-between; align-items:center; gap:16px; }
+  .ed { width:100%; border-collapse:collapse; font-size:14px; table-layout:fixed; }
+  .ed th { text-align:left; font-weight:500; font-size:12px; color:var(--t3); padding:8px 12px; border-bottom:1px solid var(--line2); }
+  .ed td { padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top; width:50%; white-space:pre-wrap; line-height:1.7; }
+  .ed td.src { font-family:var(--mono); font-size:13px; color:var(--t2); }
+  .ed td.src .clip { display:block; max-height:180px; overflow:auto; }
+  .ed td.src small { display:block; font-family:var(--sans); color:var(--t3); font-size:11px; margin-bottom:4px; }
+  .ed textarea { min-height:40px; }
+  .ed textarea.saved { border-color:var(--pos); }
+  .pager { display:flex; align-items:center; gap:8px; margin-top:16px; font-size:13px; color:var(--t3); }
+  .pbar { height:4px; background:var(--raised); border-radius:2px; overflow:hidden; margin-top:16px; }
+  .srcrow { display:grid; grid-template-columns:20px minmax(0,1fr); gap:8px; padding:12px; border:1px solid var(--line); border-radius:8px; background:var(--deep); cursor:pointer; font-size:14px; }
+  .srcrow input { margin-top:4px; accent-color:var(--acc); }
+  .srcname { word-break:break-all; }
+  .srcsample { display:block; font-size:12px; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+  .pbar i { display:block; height:100%; width:0; background:var(--acc); transition:transform .3s var(--ease); transform-origin:left; }
+  .demo-flag { font-size:12px; color:var(--t3); border:1px solid var(--line2); border-radius:6px; padding:2px 8px; }
+
+  /* account + modal */
+  .acct { padding-top:32px; display:grid; grid-template-columns:300px minmax(0,1fr); gap:32px; align-items:start; }
+  .who-card { text-align:left; }
+  .who-card .avatar { width:56px; height:56px; font-size:20px; margin-bottom:16px; }
+  .who-card h2 { font-size:20px; font-weight:500; margin:0; }
+  .pill { display:inline-flex; align-items:center; gap:4px; font-size:12px; color:var(--t2); border:1px solid var(--line2); border-radius:6px; padding:2px 8px; margin-top:12px; }
+  .formgrid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; }
+  .formgrid .full { grid-column:1/-1; }
+  dialog { background:var(--card); color:var(--t1); border:1px solid var(--line2); border-radius:16px; padding:32px; width:min(400px,calc(100vw - 32px)); box-shadow:0 24px 64px rgba(0,0,0,.5); }
+  dialog::backdrop { background:rgba(10,9,8,.7); }
+  dialog h2 { font-size:20px; font-weight:500; margin:0 0 8px; }
+  dialog p { color:var(--t2); font-size:14px; margin:0 0 24px; }
+  .gbtn { width:100%; justify-content:center; }
+
+  footer { border-top:1px solid var(--line); }
+  footer .in { max-width:1200px; margin:0 auto; padding:32px 24px; display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--t3); }
+
+  @media (max-width:900px) {
+    .hero, .tw { grid-template-columns:1fr; gap:48px; padding:48px 0; }
+    .hero h1 { font-size:36px; } .tw h1 { font-size:30px; }
+    .gp, .acct { grid-template-columns:1fr; } .side { position:static; }
+    .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  }
+  @media (max-width:720px) {
+    .top .in { gap:16px; padding:0 16px; }
+    .links { display:none; position:absolute; top:56px; left:0; right:0; background:var(--bg); border-bottom:1px solid var(--line); flex-direction:column; padding:8px 16px 16px; }
+    .links.open { display:flex; }
+    .links a { padding:10px 12px; font-size:15px; }
+    .auth { margin-left:auto; } .menubtn { display:inline-flex; }
+    .game { min-height:0; }
+    .auth .label { display:none; }
+    main { padding:0 16px 64px; }
+    .dlg .dst { font-size:18px; }
+    .qrwrap, .formgrid { grid-template-columns:1fr; }
+    .modes { grid-template-columns:1fr; } .engcard .ecols { grid-template-columns:1fr; }
+    .ed td { display:block; width:100%; } .ed td.src { border-bottom:0; padding-bottom:0; } .ed thead { display:none; }
+    .dlg-wrap .ghost { display:none; }
+  }
+.upl{display:flex;gap:24px;align-items:center;justify-content:space-between;padding:16px;border:1px solid var(--line2);border-radius:10px;background:var(--raised);margin-top:16px}
+.upl p{margin:4px 0 0;font-size:13px;max-width:60ch}.upl b{font-weight:500}
+@media (max-width:640px){.upl{flex-direction:column;align-items:stretch}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <a class="brand" href="#home"><img src="data:image/png;base64,__LOGO64__" alt="">moddi</a>
+  <nav class="links" id="links">
+    <a href="#home" data-r="home">คลังเกม</a>
+    <a href="#translate" data-r="translate">แปลเกม</a>
+    <a href="#translators" data-r="translators">สำหรับผู้แปล</a>
+    <a href="#support" data-r="support">สนับสนุน</a>
+  </nav>
+  <div class="auth" id="auth"></div>
+  <button class="linkbtn menubtn" id="menubtn" aria-label="เมนู"></button>
+</div></header>
+<main id="app"></main>
+<footer><div class="in">
+  <span>moddi · คำแปลทุกชิ้นเป็นผลงานของผู้แปลแต่ละท่าน · เราไม่แจกไฟล์เกม</span>
+  <span>ฟอนต์ไทยในเกม: Sarabun (SIL OFL)</span>
+</div></footer>
+
+<dialog id="login">
+  <h2>เข้าสู่ระบบ</h2>
+  <p id="login-text">ใช้บัญชี Google เพื่อยืนยันความเป็นเจ้าของผลงานแปล และตั้งค่าช่องทางรับเงินสนับสนุน</p>
+  <div style="display:grid;gap:8px">
+    <button class="btn pri lg gbtn" id="login-google">เข้าสู่ระบบด้วย Google</button>
+    <button class="btn quiet gbtn" id="login-cancel">ยกเลิก</button>
+  </div>
+</dialog>
+
+<script>
+/*__ICONS__*/
+/*__QRCODE__*/
+/*__PROMPTPAY__*/
+/*__ENGINE__*/
+/*__GUIDES__*/
+const FONT_B64 = "__FONT_B64__";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+let CAT = { hub: {}, games: [] };
+const state = { q: '', plat: 'all', easy: false };
+const APP = { mode: 'web' };  // 'app' = รันในโปรแกรม moddi (มี /api)
+
+$('#menubtn').innerHTML = icon('menu');
+$('#menubtn').onclick = () => $('#links').classList.toggle('open');
+
+// ================================================================ data
+async function boot() {
+  try { CAT = await (await fetch('catalog.json', { cache: 'no-cache' })).json(); }
+  catch { $('#app').innerHTML = '<div class="empty" style="margin-top:64px"><b>โหลดรายการเกมไม่ได้</b>ลองรีเฟรชหน้านี้อีกครั้ง</div>'; return; }
+  CAT.games = (CAT.games || []).map(g => ({ ...g, mods: (g.mods || []).filter(m => [1, 2, 3].includes(m.tier)) })).filter(g => g.mods.length);
+  try {
+    const r = await fetch('api/progress', { method: 'POST', body: '{}' });
+    const j = await r.json(); if (r.ok && 'running' in j) APP.mode = 'app';
+  } catch {}
+  await Auth.init();
+  await Lib.inject();
+  route();
+}
+const bestTier = g => Math.min(...g.mods.map(m => m.tier));
+const isEasy = g => g.mods.some(m => m.tier === 1 && m.install === 'moddi');
+const ACCESS = { 1: 'ติดตั้งผ่านคลัง', 2: 'ลิงก์ไปโพสต์ผู้แปล', 3: 'ดูที่เพจผู้แปล' };
+const PLAT = { pc: ['monitor', 'PC'], mobile: ['smartphone', 'มือถือ'] };
+const plats = g => (g.platforms || []).map(p => PLAT[p] ? `<span>${icon(PLAT[p][0])}${PLAT[p][1]}</span>` : '').join('');
+
+// ================================================================ stats bars
+const ORIGIN = { f: ['แปลด่วน', 'c-f'], p: ['แปลพรีเมียม', 'c-p'], h: ['คนเกลา', 'c-h'] };
+const pct = (n, t) => t ? Math.round(100 * n / t) : 0;
+function mixBars(st) {
+  if (!st || !st.total) return '';
+  return `<div class="mix">${[['f', st.fast], ['p', st.premium], ['h', st.human]].map(([k, n]) => `<div class="r">
+      <span>${ORIGIN[k][0]}</span><span class="n">${(n || 0).toLocaleString()} บรรทัด</span><span class="p">${pct(n || 0, st.total)}%</span>
+      <div class="b"><i class="${ORIGIN[k][1]}" style="width:${pct(n || 0, st.total)}%"></i></div></div>`).join('')}</div>`;
+}
+function stackBar(st) {
+  if (!st || !st.total) return '';
+  const left = Math.max(0, st.total - st.fast - st.premium - st.human);
+  return `<div class="stack">${[['c-f', st.fast], ['c-p', st.premium], ['c-h', st.human]].map(([c, n]) => n ? `<i class="${c}" style="width:${100 * n / st.total}%"></i>` : '').join('')}</div>
+    <div class="legend">${[['f', st.fast], ['p', st.premium], ['h', st.human]].map(([k, n]) => `<span><i class="${ORIGIN[k][1]}"></i>${ORIGIN[k][0]} <span class="mono">${(n || 0).toLocaleString()}</span></span>`).join('')}
+    <span><i style="background:var(--raised);border:1px solid var(--line2)"></i>ยังไม่แปล <span class="mono">${left.toLocaleString()}</span></span></div>`;
+}
+const initials = t => esc(t.split(/\s+/).filter(w => /\w/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase());
+const coverUrl = g => g.cover || (g.steam_appid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${encodeURIComponent(g.steam_appid)}/header.jpg` : '');
+const findMod = id => { for (const g of CAT.games) for (const m of g.mods) if (m.id === id) return [g, m]; return [null, null]; };
+
+
+// ================================================================ คลังชุมชน: ใครก็อัพงานที่แปลค้างไว้ได้ แล้วคนอื่นแปลต่อ
+// ทุกครั้งที่อัพ = รวมกับฉบับล่าสุดในคลังก่อน (ไม่มีงานใครหาย) แล้วเก็บเป็นเวอร์ชันใหม่ ประวัติอยู่ครบ ย้อนได้
+const RANK = { f: 1, p: 2, h: 3 };
+const Lib = {
+  key(m) {
+    if (m.steam_appid) return 'steam-' + String(m.steam_appid).replace(/\D/g, '');
+    return ((m.engine || '').split(' ')[0] + '-' + (m.title || 'game')).toLowerCase().normalize('NFKD').replace(/[^a-z0-9ก-๙]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+  },
+  clean(raw) {  // รับแค่ข้อความล้วน ตามรูปแบบไฟล์ mod
+    const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!d || !/^(moddi|thaimod)\/1$/.test(d.format) || typeof d.entries !== 'object') throw new Error('ไฟล์ mod ไม่ถูกต้อง');
+    const entries = {}, origin = {};
+    for (const [k, v] of Object.entries(d.entries)) if (typeof k === 'string' && typeof v === 'string' && v && k.length < 5000 && v.length < 5000) {
+      entries[k] = v; origin[k] = RANK[(d.origin || {})[k]] ? d.origin[k] : 'f'; }
+    const glossary = {}; for (const [k, v] of Object.entries(d.glossary || {})) if (typeof v === 'string') glossary[k] = v;
+    return { format: 'moddi/1', title: String(d.title || '').slice(0, 200), engine: String(d.engine || '').slice(0, 60), kind: d.kind === 'unity' ? 'unity' : 'rpgmaker',
+      steam_appid: String(d.steam_appid || '').replace(/\D/g, ''), from_lang: String(d.from_lang || 'en').slice(0, 8),
+      total_lines: Math.max(0, +d.total_lines || 0), entries, origin, glossary };
+  },
+  // รวมสองฉบับ: บรรทัดที่คนเกลาชนะเครื่องแปล พรีเมียมชนะแปลด่วน ระดับเท่ากันใช้ของที่อัพใหม่
+  merge(base, mine) {
+    const out = { ...mine, entries: { ...(base ? base.entries : {}) }, origin: { ...(base ? base.origin : {}) }, glossary: { ...(base ? base.glossary : {}), ...mine.glossary } };
+    let added = 0, kept = 0;
+    for (const [k, v] of Object.entries(mine.entries)) {
+      const o = mine.origin[k] || 'f', old = out.origin[k];
+      if (!(k in out.entries)) added++;
+      if (!old || RANK[o] >= RANK[old]) { out.entries[k] = v; out.origin[k] = o; } else kept++;
+    }
+    out.total_lines = Math.max(mine.total_lines, base ? base.total_lines : 0, Object.keys(out.entries).length);
+    out.stats = this.stats(out);
+    out.from_others = base ? Object.keys(base.entries).filter(k => !(k in mine.entries)).length : 0;
+    out.added = added; out.kept = kept;
+    return out;
+  },
+  stats(m) {
+    const c = { f: 0, p: 0, h: 0 }; for (const k in m.entries) c[m.origin[k] || 'f']++;
+    return { total: m.total_lines, fast: c.f, premium: c.p, human: c.h };
+  },
+  async latest(key) {
+    if (Auth.demo) { const t = store.get('lib:file:' + key); return t ? this.clean(t) : null; }
+    const { data } = await Auth.client.from('library_latest').select('path').eq('game_key', key).maybeSingle();
+    if (!data) return null;
+    const url = Auth.client.storage.from('library').getPublicUrl(data.path).data.publicUrl;
+    return this.clean(await (await fetch(url, { cache: 'no-cache' })).text());
+  },
+  async text(key) { const m = await this.latest(key); if (!m) throw new Error('ไม่พบไฟล์ในคลัง'); return JSON.stringify(m); },
+  async upload(raw) {
+    if (!Auth.user) throw new Error('ต้องเข้าสู่ระบบก่อน');
+    const mine = this.clean(raw);
+    if (!Object.keys(mine.entries).length) throw new Error('ยังไม่มีบรรทัดที่แปล');
+    const key = this.key(mine), merged = this.merge(await this.latest(key), mine);
+    const { added, kept, from_others, ...file } = merged;
+    file.updated = new Date().toISOString().slice(0, 10); file.translator = 'ชุมชน moddi';
+    const row = { game_key: key, title: mine.title, engine: mine.engine, kind: mine.kind, steam_appid: mine.steam_appid || null, from_lang: mine.from_lang,
+      total: file.stats.total, fast: file.stats.fast, premium: file.stats.premium, human: file.stats.human, user_name: Auth.user.name, lines_added: added };
+    const text = JSON.stringify(file);
+    if (Auth.demo) {
+      try { localStorage.setItem('lib:file:' + key, JSON.stringify(text)); }
+      catch { throw new Error('ไฟล์ใหญ่เกินที่โหมดตัวอย่างเก็บได้ ต้องเชื่อม Supabase ก่อน'); }
+      const idx = store.get('lib:index') || []; idx.push({ ...row, user_id: Auth.user.id, created_at: new Date().toISOString() }); store.set('lib:index', idx);
+    } else {
+      const path = `${Auth.user.id}/${key}/${Date.now()}.moddi.json`;
+      const up = await Auth.client.storage.from('library').upload(path, new Blob([text], { type: 'application/json' }));
+      if (up.error) throw new Error(up.error.message);
+      const { error } = await Auth.client.from('library_uploads').insert({ ...row, path, user_id: Auth.user.id });
+      if (error) throw new Error(error.message);
+    }
+    return { key, file, added, kept, from_others };
+  },
+  async list() {
+    if (Auth.demo) {
+      const by = {}; for (const r of store.get('lib:index') || []) {
+        const g = by[r.game_key] || (by[r.game_key] = { ...r, people: new Set(), versions: 0 });
+        Object.assign(g, r, { people: g.people.add(r.user_id), versions: g.versions + 1 }); }
+      return Object.values(by).map(g => ({ ...g, contributors: g.people.size }));
+    }
+    const { data } = await Auth.client.from('library_latest').select('*');
+    return data || [];
+  },
+  // ใส่เกมจากคลังชุมชนเข้ารายการเกม
+  async inject() {
+    let rows = []; try { rows = await this.list(); } catch {}
+    for (const r of rows) {
+      const mod = { id: 'lib-' + r.game_key, tier: 1, community: true, install: r.kind === 'rpgmaker' ? 'moddi' : 'moddi_app', file: 'lib:' + r.game_key,
+        updated: String(r.created_at || '').slice(0, 10), last_by: r.user_name, contributors: r.contributors || 1, versions: r.versions || 1,
+        translator: { name: 'ชุมชน moddi' }, stats: { total: r.total, fast: r.fast, premium: r.premium, human: r.human } };
+      let g = CAT.games.find(x => (r.steam_appid && String(x.steam_appid) === String(r.steam_appid)) || x.title.toLowerCase() === String(r.title).toLowerCase());
+      if (!g) CAT.games.push(g = { id: 'c-' + r.game_key, title: r.title, engine: r.engine, platforms: ['pc'], steam_appid: r.steam_appid, from_lang: r.from_lang, mods: [] });
+      g.mods = g.mods.filter(m => m.id !== mod.id); g.mods.unshift(mod);
+    }
+  },
+};
+const loadModText = async m => String(m.file).startsWith('lib:') ? Lib.text(m.file.slice(4)) : (await fetch(m.file)).text();
+function dlText(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); }
+
+// ================================================================ router
+function route() {
+  const h = (location.hash.slice(1) || 'home');
+  const top = h.startsWith('game-') || h.startsWith('refine-') ? 'home' : h === 'install' ? 'home' : h === 'studio-preview' ? 'translate' : h;
+  $$('.links a').forEach(a => a.classList.toggle('on', a.dataset.r === top));
+  $('#links').classList.remove('open');
+  window.scrollTo(0, 0);
+  if (h.startsWith('game-')) return viewGame(decodeURIComponent(h.slice(5)));
+  if (h.startsWith('refine-')) return viewRefineMod(decodeURIComponent(h.slice(7)));
+  ({ install: viewInstall, translate: viewTranslate, 'studio-preview': () => viewStudio(true), translators: viewTranslators,
+     support: viewSupport, account: viewAccount }[h] || viewHome)();
+}
+window.addEventListener('hashchange', route);
+const page = html => { $('#app').innerHTML = `<section class="page">${html}</section>`; };
+
+// ================================================================ home
+function viewHome() {
+  const hq = CAT.games.find(g => isEasy(g));
+  const credit = hq ? `${esc(hq.mods[0].translator.name)} · ${esc(hq.title)}` : '';
+  page(`
+    <div class="hero">
+      <div>
+        <h1>เกมไหนแปลไทยแล้ว<br>หาเจอที่นี่</h1>
+        <p class="sub">รวมงานแปลจากผู้แปลไทย พร้อมเครดิต ลิงก์ต้นทาง และวิธีติดตั้งของแต่ละเกม บางเกมติดตั้งได้จากในเว็บเลย</p>
+        <div class="searchbox">${icon('search')}<input type="search" id="q" placeholder="ชื่อเกม" value="${esc(state.q)}" aria-label="ค้นหาชื่อเกม"></div>
+        <div class="more t3">มีไฟล์ mod อยู่แล้ว <a href="#install" class="t2">ติดตั้งจากไฟล์</a></div>
+      </div>
+      <div class="dlg-wrap"><div class="ghost"></div>
+        <div class="dlg" aria-label="ตัวอย่างบทพูดก่อนและหลังแปล">
+          <span class="who">Harold</span>
+          <p class="src">You have 120 gold.<br>Shall we rest at the inn tonight?</p>
+          <p class="dst">เจ้ามีทอง 120 เหรียญ<br>คืนนี้จะพักที่โรงเตี๊ยมไหม</p>
+          <div class="foot"><span>แปลโดย ${credit}</span><span class="tri"></span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sechead">
+      <h2>คลังเกม<span class="count mono" id="count"></span></h2>
+      <div class="row" style="gap:16px">
+        <div class="seg" id="seg"><button data-p="all">ทั้งหมด</button><button data-p="pc">${icon('monitor')}PC</button><button data-p="mobile">${icon('smartphone')}มือถือ</button></div>
+        <span class="toggle" id="easy" role="switch" tabindex="0"><span class="sw"></span>ติดตั้งในเว็บได้</span>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>`);
+  $('#q').oninput = e => { state.q = e.target.value; renderGrid(); };
+  $$('#seg button').forEach(b => b.onclick = () => { state.plat = b.dataset.p; renderGrid(); });
+  const tg = () => { state.easy = !state.easy; renderGrid(); };
+  $('#easy').onclick = tg; $('#easy').onkeydown = e => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), tg());
+  renderGrid();
+}
+function renderGrid() {
+  $$('#seg button').forEach(b => b.classList.toggle('on', b.dataset.p === state.plat));
+  $('#easy').classList.toggle('on', state.easy); $('#easy').setAttribute('aria-checked', state.easy);
+  const q = state.q.trim().toLowerCase();
+  const list = CAT.games.filter(g => (!q || (g.title + ' ' + (g.title_th || '')).toLowerCase().includes(q))
+    && (state.plat === 'all' || (g.platforms || []).includes(state.plat)) && (!state.easy || isEasy(g)))
+    .sort((a, b) => bestTier(a) - bestTier(b) || a.title.localeCompare(b.title));
+  $('#count').textContent = `${list.length} เกม`;
+  $('#grid').innerHTML = list.length ? list.map(g => {
+    const t = bestTier(g);
+    const m = [...g.mods].sort((a, b) => a.tier - b.tier)[0], st = m.stats;
+    const cv = coverUrl(g);
+    return `<a class="game" href="#game-${encodeURIComponent(g.id)}">
+      <div class="cv"><div class="fb" aria-hidden="true">${initials(g.title)}</div>${cv ? `<img src="${esc(cv)}" alt="" loading="lazy" onerror="this.remove()">` : ''}<span class="lang">${esc((g.from_lang || 'en').toUpperCase())} → TH</span></div>
+      <div class="gb">
+        <h3>${esc(g.title)}</h3>
+        <div class="meta">${plats(g)}<span>${esc(g.engine || '')}</span></div>
+        ${mixBars(st)}
+        <div class="tot"><span><i class="dot t${t}"></i>${isEasy(g) ? 'ติดตั้งในเว็บได้' : ACCESS[t]}</span><span class="mono">${st ? st.total.toLocaleString() + ' บรรทัด' : g.mods.length + ' คำแปล'}</span></div>
+      </div></a>`;
+  }).join('') : `<div class="empty"><b>ยังไม่มีเกมนี้ในคลัง</b>รู้จักเพจที่แปลเกมนี้ บอกเราได้ที่หน้า <a href="#translators">สำหรับผู้แปล</a></div>`;
+}
+
+// ================================================================ game page
+function viewGame(id) {
+  const g = CAT.games.find(x => x.id === id);
+  if (!g) return page(`<a class="back" href="#home">${icon('arrow-left')}คลังเกม</a><div class="empty"><b>ไม่พบเกมนี้</b>อาจถูกนำออกตามคำขอของผู้แปล</div>`);
+  const mods = [...g.mods].sort((a, b) => a.tier - b.tier || (b.progress || 0) - (a.progress || 0));
+  page(`<a class="back" href="#home">${icon('arrow-left')}คลังเกม</a>
+    <div class="gp">
+      <div>
+        <h1>${esc(g.title)}</h1>
+        <p class="lead">คำแปลภาษาไทย ${mods.length} ชุด</p>
+        ${mods.map(modBlock).join('')}
+      </div>
+      <aside class="side panel">
+        <dl class="kv">
+          <dt>แพลตฟอร์ม</dt><dd>${(g.platforms || []).map(p => PLAT[p] ? PLAT[p][1] : p).join(', ')}</dd>
+          <dt>เอนจิน</dt><dd>${esc(g.engine || '-')}</dd>
+          ${g.genre ? `<dt>แนว</dt><dd>${esc(g.genre)}</dd>` : ''}
+          <dt>คำแปล</dt><dd class="mono">${mods.length}</dd>
+        </dl>
+        <div class="note" style="margin-top:24px">${icon('circle-alert')}<span>เกมต้องเป็นของแท้ที่ซื้อแล้ว คลังนี้มีแค่ไฟล์คำแปล</span></div>
+      </aside>
+    </div>`);
+  mods.forEach(m => wireMod(m));
+}
+
+function modBlock(m) {
+  const t = m.translator || {};
+  const guide = INSTALL_GUIDES[m.install] || INSTALL_GUIDES.other;
+  const id = esc(m.id);
+  const head = `<div class="head">
+      <div><div class="name">${m.community ? icon('users') : ''}${esc(t.name || 'ไม่ระบุผู้แปล')}${t.verified ? `<span title="ยืนยันตัวตนแล้ว">${icon('badge-check')}</span>` : ''}</div>
+        <div class="sub mono">${[m.version && 'v' + esc(m.version), m.updated && 'อัปเดต ' + esc(m.updated)].filter(Boolean).join(' · ')}</div></div>
+      <div class="access"><i class="dot t${m.tier}"></i>${ACCESS[m.tier]} · ${esc(guide.name)}</div>
+    </div>
+    ${m.stats ? `<div style="margin-top:16px">${mixBars(m.stats)}</div>` : m.progress != null ? `<div class="bar"><i style="width:${Math.max(0, Math.min(100, +m.progress))}%"></i></div>
+      <div class="barlabel"><span>ความคืบหน้า</span><span class="mono">${+m.progress}%</span></div>` : ''}`;
+  const refine = m.file && /\.moddi\.json$|\.thaimod\.json$|^lib:/.test(m.file) ? `<a class="btn quiet" href="#refine-${encodeURIComponent(m.id)}">${icon('languages')}เกลาภาษา</a>` : '';
+  const steps = `<h4>วิธีติดตั้ง</h4><ol class="steps">${[...guide.steps, ...(m.steps || [])].map(s => `<li><span>${esc(s)}</span></li>`).join('')}</ol>
+    ${guide.note ? `<div class="note">${icon('circle-alert')}<span>${esc(guide.note)}</span></div>` : ''}`;
+  const support = t.verified && t.promptpay ? `<button class="btn quiet" data-support="${id}">${icon('heart')}สนับสนุนผู้แปล</button>` : '';
+  const pageLink = t.page_url ? `<a class="btn quiet" href="${esc(safeUrl(t.page_url))}" target="_blank" rel="noopener">เพจผู้แปล${icon('external-link')}</a>` : '';
+  const qr = `<div data-qr="${id}"></div>`;
+
+  const comm = m.community ? `<div class="note ok">${icon('users')}<span>แปลร่วมกัน ${m.contributors} คน · อัพ ${m.versions} ครั้ง · ล่าสุดโดย ${esc(m.last_by || '-')} ยังแปลไม่ครบก็ติดตั้งเล่นได้ บรรทัดที่ยังไม่แปลจะเป็นภาษาเดิม</span></div>` : '';
+  const join = m.community ? `<button class="btn quiet" data-join="${id}">${icon('download')}ร่วมแปลต่อ</button>` : '';
+  if (m.community && m.install !== 'moddi') return `<div class="panel mod">${head}${comm}${steps}
+      <div class="actions"><button class="btn pri" data-join="${id}">${icon('download')}ดาวน์โหลดไฟล์แปล</button><span class="spacer"></span>${refine}</div></div>`;
+  if (m.tier === 1 && m.install === 'moddi') return `<div class="panel mod">${head}${comm}${steps}
+      <div class="ginfo hide" data-ginfo="${id}"></div><div class="hide" data-status="${id}"></div>
+      <div class="actions"><button class="btn sec" data-pick="${id}">${icon('folder-open')}เลือกโฟลเดอร์เกม</button>
+        <button class="btn pri" data-inst="${id}" disabled>ติดตั้งภาษาไทย</button>
+        <button class="btn danger hide" data-unin="${id}">ถอน mod</button><span class="spacer"></span>${join}${refine}${support}${pageLink}</div>${qr}</div>`;
+  if (m.tier === 1) return `<div class="panel mod">${head}
+      <div class="note ok">${icon('check')}<span>ผู้แปลฝากไฟล์ไว้ในคลัง และคลังตรวจไฟล์แล้ว</span></div>${steps}
+      <div class="actions"><a class="btn pri" href="${esc(m.file)}" download>${icon('download')}ดาวน์โหลดไฟล์แปล</a><span class="spacer"></span>${support}${pageLink}</div>${qr}</div>`;
+  if (m.tier === 2) return `<div class="panel mod">${head}
+      <div class="note">${icon('circle-alert')}<span>ไฟล์อยู่ที่โพสต์ของผู้แปล คลังไม่ได้ตรวจไฟล์นี้</span></div>${steps}
+      <div class="actions"><a class="btn pri" href="${esc(safeUrl(m.download_url))}" target="_blank" rel="noopener">ไปที่โพสต์ดาวน์โหลด${icon('external-link')}</a><span class="spacer"></span>${support}${pageLink}</div>${qr}</div>`;
+  return `<div class="panel mod">${head}
+      <p class="t2" style="margin:16px 0 0;font-size:14px">เกมนี้มีคนแปลไทยแล้ว ดาวน์โหลดและดูวิธีติดตั้งได้ที่เพจของผู้แปล</p>
+      <div class="actions"><a class="btn pri" href="${esc(safeUrl(m.page_url || t.page_url))}" target="_blank" rel="noopener">ไปที่เพจผู้แปล${icon('external-link')}</a><span class="spacer"></span>${support}</div>${qr}</div>`;
+}
+
+function wireMod(m) {
+  const b = document.querySelector(`[data-support="${CSS.escape(m.id)}"]`);
+  if (b) b.onclick = () => {
+    const box = document.querySelector(`[data-qr="${CSS.escape(m.id)}"]`);
+    if (box.innerHTML) { box.innerHTML = ''; return; }
+    box.innerHTML = supportBox(m.translator.name, 'เงินเข้าพร้อมเพย์ของผู้แปลโดยตรงทั้งหมด คลังไม่หักส่วนแบ่ง', 'm-' + m.id);
+    wireQR(box, m.translator.promptpay, 'm-' + m.id);
+  };
+  if (m.tier === 1 && m.install === 'moddi') wireInstaller(m);
+  $$(`[data-join="${CSS.escape(m.id)}"]`).forEach(b => b.onclick = async () => {
+    try { dlText((m.file.slice(4) || 'game') + '.moddi.json', await loadModText(m));
+      toast('ดาวน์โหลดแล้ว เปิดแอป moddi กด "นำเข้าไฟล์ mod" แปลต่อ แล้วกด "อัพลงคลัง"'); }
+    catch (e) { toast(e.message); }
+  });
+}
+
+// ================================================================ installer
+function fontBytes() { const s = atob(FONT_B64); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+function note(el, kind, msg) {
+  const ic = { ok: 'check', bad: 'circle-alert', warn: 'loader', '': 'circle-alert' }[kind];
+  el.className = 'note ' + kind; el.innerHTML = `${icon(ic)}<span>${esc(msg)}</span>`;
+}
+function wireInstaller(m, modData = null) {
+  const q = k => document.querySelector(`[data-${k}="${CSS.escape(m.id)}"]`);
+  const st = q('status'), info = q('ginfo'), bI = q('inst'), bU = q('unin');
+  let dir = null, mod = modData;
+  const getMod = async () => mod || (mod = Moddi.readMod(await loadModText(m)));
+  async function check() {
+    const gi = await Moddi.detect(dir).catch(() => null);
+    if (!gi) { info.classList.add('hide'); note(st, 'bad', 'ไม่เจอเกม RPG Maker MV/MZ ในโฟลเดอร์นี้ เลือกโฟลเดอร์ที่มีไฟล์ Game.exe'); bI.disabled = true; bU.classList.add('hide'); return; }
+    const md = await getMod(), units = await Moddi.extract(gi);
+    let hit = 0; for (const u of units) if (md.entries[u]) hit++;
+    const pct = Math.round(100 * hit / Math.max(1, units.size));
+    info.innerHTML = `<dl class="kv"><dt>เกมในเครื่อง</dt><dd>${esc(gi.title || dir.name)}</dd><dt>เอนจิน</dt><dd>${esc(gi.engine)}</dd>
+      <dt>สถานะ</dt><dd>${gi.installed ? 'ติดตั้ง mod อยู่' : 'ยังไม่ได้ติดตั้ง'}</dd><dt>ตรงกับคำแปล</dt><dd class="mono">${pct}%</dd></dl>`;
+    info.classList.remove('hide');
+    if (hit === 0) note(st, 'bad', 'คำแปลนี้ไม่ตรงกับเกมในโฟลเดอร์ อาจเลือกผิดเกม');
+    else if (pct < 60) note(st, 'warn', 'ตรงกับเกมแค่บางส่วน อาจเป็นเกมคนละเวอร์ชัน บางข้อความจะยังเป็นภาษาเดิม');
+    else st.className = 'hide';
+    bI.disabled = hit === 0; bU.classList.toggle('hide', !gi.installed);
+  }
+  q('pick').onclick = async () => {
+    if (!('showDirectoryPicker' in window)) return note(st, 'bad', 'ต้องใช้ Chrome หรือ Edge บนคอมพิวเตอร์');
+    try { dir = await window.showDirectoryPicker({ mode: 'readwrite', id: 'moddi-game' }); }
+    catch (e) { if (e.name !== 'AbortError') note(st, 'bad', e.name === 'SecurityError' ? 'หน้านี้เปิดโฟลเดอร์ไม่ได้ ลองเปิดในแท็บใหม่' : e.message); return; }
+    try { await check(); } catch (e) { note(st, 'bad', e.message); }
+  };
+  bI.onclick = async () => {
+    bI.disabled = true;
+    try {
+      const n = await Moddi.install(dir, (await getMod()).entries, fontBytes(), s => note(st, 'warn', s));
+      await check(); note(st, 'ok', `ติดตั้งเสร็จ ใส่คำแปลแล้ว ${n.toLocaleString()} จุด เปิดเกมเล่นได้เลย`);
+    } catch (e) { note(st, 'bad', 'ติดตั้งไม่สำเร็จ: ' + e.message); bI.disabled = false; }
+  };
+  bU.onclick = async () => {
+    if (!bU.dataset.sure) { bU.dataset.sure = 1; bU.textContent = 'กดอีกครั้งเพื่อยืนยัน'; setTimeout(() => { delete bU.dataset.sure; bU.textContent = 'ถอน mod'; }, 4000); return; }
+    delete bU.dataset.sure; bU.textContent = 'ถอน mod';
+    try { await Moddi.uninstall(dir); await check(); note(st, 'ok', 'ถอน mod แล้ว เกมกลับเป็นต้นฉบับทุกไฟล์'); }
+    catch (e) { note(st, 'bad', e.message); }
+  };
+}
+
+function viewInstall() {
+  page(`<a class="back" href="#home">${icon('arrow-left')}คลังเกม</a>
+    <div class="gp"><div>
+      <h1>ติดตั้งจากไฟล์ mod</h1>
+      <p class="lead">สำหรับไฟล์ .moddi.json ที่ได้จากผู้แปลโดยตรง หรือที่ทำเองด้วยแอป moddi</p>
+      <div class="panel"><label class="f">ไฟล์ mod<input type="file" id="mf" accept=".json"></label><div class="hide" id="mferr"></div></div>
+      <div id="mfbox" style="margin-top:16px"></div>
+    </div></div>`);
+  $('#mf').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const md = Moddi.readMod(await f.text());
+      const m = { id: 'local', tier: 1, install: 'moddi', translator: { name: md.translator || 'ไม่ระบุผู้แปล' }, updated: md.created };
+      $('#mferr').className = 'hide';
+      $('#mfbox').innerHTML = modBlock(m).replace('<div class="head">', `<p class="t2" style="margin:0 0 16px;font-size:14px">${esc(md.title)} · <span class="mono">${Object.keys(md.entries).length.toLocaleString()}</span> ข้อความ</p><div class="head">`);
+      wireInstaller(m, md);
+    } catch (err) { note($('#mferr'), 'bad', err.message); $('#mfbox').innerHTML = ''; }
+  };
+}
+
+// ================================================================ support / QR
+function supportBox(name, msg, key) {
+  return `<div class="qrwrap">
+    <div class="qr"><div class="pp">PromptPay</div><img data-qrimg="${key}" alt="QR พร้อมเพย์ของ ${esc(name)}"><small>${esc(name)}</small></div>
+    <div><div class="t2" style="font-size:14px">เลือกจำนวน หรือสแกนแล้วใส่จำนวนเองในแอปธนาคาร</div>
+      <div class="amts">${[0, 20, 50, 100, 300].map(a => `<button data-amt="${a}" data-k="${key}">${a ? a + ' ฿' : 'ใส่เอง'}</button>`).join('')}</div>
+      <div class="note">${icon('heart')}<span>${esc(msg)}</span></div></div></div>`;
+}
+function wireQR(box, pp, key) {
+  const img = box.querySelector(`[data-qrimg="${key}"]`); if (!img) return;
+  const draw = amt => {
+    const qr = qrcode(0, 'M'); qr.addData(promptpayPayload(pp, amt || null)); qr.make(); img.src = qr.createDataURL(6, 2);
+    box.querySelectorAll(`[data-k="${key}"]`).forEach(b => b.classList.toggle('on', +b.dataset.amt === amt));
+  };
+  box.querySelectorAll(`[data-k="${key}"]`).forEach(b => b.onclick = () => draw(+b.dataset.amt));
+  draw(0);
+}
+function viewSupport() {
+  const h = CAT.hub || {};
+  page(`<div class="gp" style="padding-top:48px"><div>
+    <h1>สนับสนุนคลัง moddi</h1>
+    <p class="lead">เงินส่วนนี้ใช้จ่ายค่าเว็บ ค่าเซิร์ฟเวอร์ และใช้พัฒนาแอปแปลต่อ ถ้าอยากสนับสนุนผู้แปล ให้กดสนับสนุนจากหน้าเกมนั้น เงินจะเข้าผู้แปลโดยตรง</p>
+    <div class="panel" id="hubqr">${h.promptpay ? supportBox(h.promptpay_name || 'moddi', 'เงินเข้าบัญชีของคลัง moddi', 'hub') : '<p class="t2">ยังไม่เปิดรับเงินสนับสนุน</p>'}</div>
+  </div></div>`);
+  if (h.promptpay) wireQR($('#hubqr'), h.promptpay, 'hub');
+}
+
+// ================================================================ เกลาภาษา
+// rows: [{src, tgt, origin}] · save(src, newText) · exportFn() · back: hash
+function refineView({ title, sub, rows, save, exportFn, uploadFn, back, note: extra }) {
+  let filter = 'machine', q = '', idx = 0;
+  const list = () => rows.filter(r => (filter === 'all' || (filter === 'machine' ? r.tgt && r.origin !== 'h' : !r.tgt))
+    && (!q || (r.src + ' ' + (r.tgt || '')).toLowerCase().includes(q)));
+  page(`<div class="rf">
+    <a class="back" href="#${esc(back)}" style="margin:0 0 16px">${icon('arrow-left')}กลับ</a>
+    <div class="row" style="justify-content:space-between;align-items:end">
+      <div><h1 style="font-size:28px;font-weight:500;margin:0">เกลาภาษา</h1><div class="t2" style="font-size:14px">${esc(title)}${sub ? ' · ' + esc(sub) : ''}</div></div>
+      <div class="t2" style="font-size:13px">เกลาแล้ว <span class="mono" id="rf-h"></span></div>
+    </div>
+    <div id="rf-mix" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:24px;justify-content:space-between">
+      <div class="seg" id="rf-f"><button data-f="machine">แปลโดยเครื่อง</button><button data-f="todo">ยังไม่แปล</button><button data-f="all">ทั้งหมด</button></div>
+      <input type="search" id="rf-q" placeholder="ค้นหา" style="max-width:240px">
+    </div>
+    <div class="card" id="rf-card"></div>
+    <div class="actions" style="border:0;padding-top:16px">${uploadFn ? `<button class="btn pri" id="rf-up">${icon('upload')}อัพลงคลัง</button>` : ''}${exportFn ? `<button class="btn sec" id="rf-exp">${icon('download')}ส่งออกไฟล์ที่เกลาแล้ว</button>` : ''}
+      <span class="t3" style="font-size:13px">${extra || ''}</span></div>
+  </div>`);
+  const draw = () => {
+    const L = list();
+    const human = rows.filter(r => r.origin === 'h').length;
+    $('#rf-h').textContent = `${human.toLocaleString()} / ${rows.length.toLocaleString()}`;
+    const st = { total: rows.length, fast: rows.filter(r => r.tgt && r.origin === 'f').length, premium: rows.filter(r => r.tgt && r.origin === 'p').length, human };
+    $('#rf-mix').innerHTML = stackBar(st);
+    $$('#rf-f button').forEach(b => b.classList.toggle('on', b.dataset.f === filter));
+    if (!L.length) { $('#rf-card').innerHTML = `<div class="empty" style="border:0;padding:32px"><b>ไม่มีบรรทัดในหมวดนี้แล้ว</b>${filter === 'machine' ? 'เกลาครบทุกบรรทัดที่แปลโดยเครื่องแล้ว' : 'ลองเปลี่ยนหมวดหรือคำค้นหา'}</div>`; return; }
+    idx = Math.max(0, Math.min(idx, L.length - 1));
+    const r = L[idx], org = r.tgt ? ORIGIN[r.origin || 'f'][0] : 'ยังไม่แปล';
+    $('#rf-card').innerHTML = `
+      <div class="lbl"><span>ต้นฉบับ</span><span class="pos">${idx + 1} / ${L.length.toLocaleString()}</span></div>
+      <div class="src">${esc(r.src)}</div>
+      <div class="lbl" style="margin-top:20px"><span>คำแปลตอนนี้</span><span>${org}</span></div>
+      <div class="cur">${r.tgt ? esc(r.tgt) : '<span class="t3">ยังไม่มีคำแปล</span>'}</div>
+      <label class="f" style="margin-top:20px">คำแปลของคุณ<textarea id="rf-t" rows="${Math.max(3, r.src.split('\n').length + 1)}">${esc(r.tgt || '')}</textarea></label>
+      <p class="t3" style="font-size:12px;margin:8px 0 0">เก็บโค้ดอย่าง \\V[1] %1 {0} &lt;color&gt; ไว้เหมือนต้นฉบับ · กด <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> เพื่อบันทึก</p>
+      <div class="actions"><button class="btn quiet" id="rf-prev">ก่อนหน้า</button><button class="btn sec" id="rf-skip">ข้าม</button>
+        <span class="spacer"></span><button class="btn pri" id="rf-save">${icon('check')}บันทึก แล้วไปต่อ</button></div>`;
+    const ta = $('#rf-t'); ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    const doSave = async () => {
+      const v = ta.value.trim();
+      if (v && v !== r.tgt) { await save(r.src, v); r.tgt = v; r.origin = 'h'; }
+      else if (v && v === r.tgt && r.origin !== 'h') { await save(r.src, v); r.origin = 'h'; }  // ยืนยันว่าคำแปลเดิมดีแล้ว
+      if (filter === 'all') idx++;
+      draw();
+    };
+    $('#rf-save').onclick = doSave;
+    ta.onkeydown = e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); doSave(); } };
+    $('#rf-skip').onclick = () => { idx = (idx + 1) % L.length; draw(); };
+    $('#rf-prev').onclick = () => { idx = (idx - 1 + L.length) % L.length; draw(); };
+  };
+  $$('#rf-f button').forEach(b => b.onclick = () => { filter = b.dataset.f; idx = 0; draw(); });
+  $('#rf-q').oninput = e => { q = e.target.value.trim().toLowerCase(); idx = 0; draw(); };
+  if (exportFn) $('#rf-exp').onclick = exportFn;
+  if (uploadFn) $('#rf-up').onclick = uploadFn;
+  draw();
+}
+
+async function viewRefineMod(id) {
+  const [g, m] = findMod(id);
+  if (!m || !m.file) return page(`<div class="empty" style="margin-top:64px"><b>ไม่พบคำแปลนี้</b><a href="#home">กลับไปคลังเกม</a></div>`);
+  page(`<div class="empty" style="margin-top:64px;border:0">กำลังโหลดคำแปล</div>`);
+  let mod;
+  try { mod = Moddi.readMod(await loadModText(m)); }
+  catch (e) { return page(`<div class="empty" style="margin-top:64px"><b>โหลดไฟล์คำแปลไม่ได้</b>${esc(e.message)}</div>`); }
+  const key = 'refine:' + m.id, local = store.get(key) || {};
+  const rows = Object.entries(mod.entries).map(([src, tgt]) => local[src] ? { src, tgt: local[src], origin: 'h' }
+    : { src, tgt, origin: (mod.origin || {})[src] || 'f' });
+  refineView({
+    title: g.title, sub: 'คำแปลโดย ' + (m.translator?.name || mod.translator || '-'), rows, back: 'game-' + g.id,
+    note: m.community ? 'คำที่เกลาเก็บไว้ในเบราว์เซอร์นี้ก่อน กดอัพลงคลังเมื่อพร้อม ทุกคนจะได้คำที่เกลา' : 'คำที่เกลาเก็บไว้ในเบราว์เซอร์นี้ ส่งออกไฟล์แล้วส่งให้ผู้แปลได้',
+    uploadFn: m.community ? async () => {
+      if (!Object.keys(local).length) return toast('ยังไม่ได้เกลาบรรทัดไหน');
+      if (!Auth.user) return Auth.open('refine-' + m.id);
+      try {
+        const raw = JSON.parse(await loadModText(m)), mine = { ...raw, entries: {}, origin: {} };
+        for (const [k, v] of Object.entries(local)) { mine.entries[k] = v; mine.origin[k] = 'h'; }
+        const r = await Lib.upload(mine); for (const k in local) delete local[k]; store.set(key, local);
+        toast(`อัพลงคลังแล้ว คนเกลารวม ${r.file.stats.human.toLocaleString()} บรรทัด`);
+        await Lib.inject();
+      } catch (e) { toast(e.message); }
+    } : null,
+    save: async (src, v) => { local[src] = v; store.set(key, local); },
+    exportFn: () => {
+      const out = { format: 'moddi/1', title: mod.title, translator: mod.translator, created: new Date().toISOString().slice(0, 10),
+        entries: {}, origin: {} };
+      rows.forEach(r => { if (r.tgt) { out.entries[r.src] = r.tgt; out.origin[r.src] = r.origin || 'f'; } });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }));
+      a.download = (mod.title || 'game') + '.เกลาแล้ว.moddi.json'; a.click();
+      toast(`ส่งออกแล้ว เกลาไป ${Object.keys(local).length.toLocaleString()} บรรทัด`);
+    },
+  });
+}
+
+// ================================================================ translators
+function viewTranslators() {
+  page(`<div class="gp" style="padding-top:48px"><div>
+    <h1>สำหรับผู้แปล</h1>
+    <p class="lead">คลังนี้ช่วยให้คนเล่นหางานแปลของคุณเจอ และติดตั้งได้ง่ายขึ้น ผลงานยังเป็นของคุณ เครดิตและลิงก์เพจของคุณติดอยู่ทุกหน้า</p>
+    <div class="panel">
+      <div class="ptitle">คุณเลือกได้ว่าจะให้คลังแสดงงานแบบไหน</div>
+      <table class="tiers">
+        <tr><td><i class="dot t1"></i>ฝากไฟล์ในคลัง</td><td><b>สมัครบัญชีผู้แปลด้วย Google</b> ยืนยันตัวตน แล้วอัปไฟล์เอง คนเล่นติดตั้งได้จากในเว็บ หน้าเกมมีปุ่มสนับสนุนที่โอนเข้าพร้อมเพย์ของคุณโดยตรง</td></tr>
+        <tr><td><i class="dot t2"></i>ลิงก์ไปโพสต์</td><td>ปุ่มดาวน์โหลดพาไปที่โพสต์ของคุณตรงๆ ทั้ง Nexus Mods เว็บ หรือเพจ ยอดเข้าชมกับโฆษณายังเป็นของคุณ</td></tr>
+        <tr><td><i class="dot t3"></i>ลิงก์ไปเพจ</td><td>บอกแค่ว่าเกมนี้มีคนแปลแล้ว แล้วพาคนไปที่หน้าเพจหลักของคุณ</td></tr>
+        <tr><td><i class="dot"></i>ไม่อนุญาต</td><td>เราไม่แสดงงานของคุณเลย เปลี่ยนใจเมื่อไหร่แจ้งได้ตลอด เราเอาออกทันที</td></tr>
+      </table>
+      <div class="actions"><button class="btn pri" id="tr-join">${Auth.user ? 'ไปที่บัญชีผู้แปล' : 'สมัครบัญชีผู้แปล'}</button><a class="btn quiet" href="#translate">แปลเกมด้วยแอป moddi</a></div>
+    </div>
+    <div class="note">${icon('check')}<span>เราไม่อัปไฟล์ของคุณเองโดยไม่ได้รับอนุญาต และไม่ลิสต์ไฟล์ที่มีตัวเกมติดมาด้วย</span></div>
+  </div></div>`);
+  $('#tr-join').onclick = () => Auth.user ? (location.hash = 'account') : Auth.open('account');
+}
+
+// ================================================================ translate
+function viewTranslate() {
+  if (APP.mode === 'app') return viewStudio(false);
+  const dl = CAT.hub.app_download_url;
+  page(`<div class="tw">
+    <div>
+      <h1>ติดตั้งแอป<br>เพื่อแปลเกมของคุณเอง</h1>
+      <p class="sub t2" style="font-size:17px;margin:0">แอป moddi ดึงข้อความจากเกม ให้ AI แปลเป็นไทย ให้คุณตรวจแก้ แล้วส่งออกเป็นไฟล์ mod มาแชร์ในคลัง</p>
+      <ol class="steps"><li><span>เลือกโฟลเดอร์เกมในเครื่อง</span></li><li><span>แปลแบบออฟไลน์ฟรี หรือใช้ API key ของคุณเอง เกม Unity แปลสดระหว่างเล่น</span></li><li><span>ตรวจแก้คำแปล ลองเล่น แล้วส่งออกไฟล์ mod</span></li></ol>
+      <div class="row">
+        ${dl ? `<a class="btn pri lg" href="${esc(safeUrl(dl))}">${icon('download')}ดาวน์โหลดสำหรับ Windows</a>` : `<button class="btn pri lg" disabled>${icon('download')}ดาวน์โหลดสำหรับ Windows</button>`}
+        <a class="btn quiet" href="#studio-preview">ดูหน้าตาในแอป</a>
+      </div>
+      <p class="t3" style="font-size:13px;margin-top:16px">${dl ? 'Windows 10 ขึ้นไป · รองรับเกม RPG Maker MV/MZ และ Unity' : 'เปิดให้ดาวน์โหลดเร็วๆ นี้ · รองรับเกม RPG Maker MV/MZ และ Unity'}</p>
+    </div>
+    <div class="studio-mini" aria-label="ตัวอย่างหน้าตรวจแก้คำแปลในแอป">
+      <div class="bar2">Hero Quest <span style="flex:1"></span><span class="mono">24 / 24</span></div>
+      <div class="r"><div>Restores 50 HP.</div><div>ฟื้นฟู HP 50 หน่วย</div></div>
+      <div class="r sel"><div>You have \\V[3] gold.</div><div>เจ้ามีทอง \\V[3] เหรียญ</div></div>
+      <div class="r"><div>%1 took %2 damage!</div><div>%1 ได้รับความเสียหาย %2</div></div>
+      <div class="r"><div>Escape</div><div>หลบหนี</div></div>
+      <div class="ft"><span>โค้ดเกมอย่าง \\V[3] และ %1 ถูกกันไว้ ไม่โดนแปลทับ</span></div>
+    </div>
+  </div>`);
+}
+
+// ---------------- studio (แอป) — ใช้ /api ของโปรแกรม; โหมดตัวอย่างใช้ข้อมูลจำลอง
+const Mock = (() => {
+  const src = ['Harold', 'A brave hero.', 'Potion', 'Restores 50 HP.', 'Hello \\C[2]\\N[1]\\C[0]!\nYou have \\V[3] gold.', 'Yes', 'No', 'Escape', '%1 took %2 damage!', 'Town'];
+  const th = { 'Harold': 'ฮาโรลด์', 'A brave hero.': 'วีรบุรุษผู้กล้าหาญ', 'Potion': 'ยาฟื้นพลัง', 'Restores 50 HP.': 'ฟื้นฟู HP 50 หน่วย',
+    'Hello \\C[2]\\N[1]\\C[0]!\nYou have \\V[3] gold.': 'สวัสดี \\C[2]\\N[1]\\C[0]\nเจ้ามีทอง \\V[3] เหรียญ', 'Yes': 'ใช่', 'No': 'ไม่', 'Escape': 'หลบหนี', '%1 took %2 damage!': '%1 ได้รับความเสียหาย %2', 'Town': 'หมู่บ้าน' };
+  const tr = { 'Harold': 'ฮาโรลด์', 'Potion': 'ยาฟื้นพลัง', 'Yes': 'ใช่', 'No': 'ไม่' };
+  let job = { running: false, done: 0, total: 0, msg: '' }, gl = { Harold: 'ฮาโรลด์' }, installed = false;
+  const org = { 'Potion': 'h' };
+  const kinds = ['db', 'db', 'db', 'db', 'dialogue', 'choice', 'choice', 'term', 'term', 'map'];
+  return async (name, b = {}) => {
+    switch (name) {
+      case 'settings': return { backend: 'ollama', model: 'gemma3:4b', base_url: 'https://openrouter.ai/api/v1', api_key: '', translator_name: '' };
+      case 'scan': return { games: [{ dir: 'C:\\Games\\Hero Quest', title: 'Hero Quest', engine: 'RPG Maker MZ' }] };
+      case 'detect': return { kind: 'rpgmaker', title: 'Hero Quest', engine: 'RPG Maker MZ',
+        support: { pct: 90, level: 'รองรับเต็ม · แปลล่วงหน้าได้ทั้งเกม', label: '≈ 90%', engine: 'RPG Maker MZ', can: ['บทพูด ตัวเลือก ชื่อผู้พูด', 'ไอเทม สกิล อาวุธ สถานะ ศัตรู', 'เมนู ข้อความต่อสู้ ชื่อแผนที่', 'ใส่ฟอนต์ไทยให้อัตโนมัติ'], cannot: ['ข้อความในปลั๊กอิน (plugins.js)', 'ตัวหนังสือที่อยู่ในรูปภาพ'] }, lines: src.length, translated: Object.keys(tr).length, installed, glossary: gl,
+        stats: { total: src.length, fast: Object.keys(tr).filter(k => (org[k] || 'f') === 'f').length, premium: Object.keys(tr).filter(k => org[k] === 'p').length, human: Object.keys(tr).filter(k => org[k] === 'h').length } };
+      case 'premium_quote': { const n = src.filter(s => !tr[s]).length; return { lines: n, usd_thb: 33, models: [
+        { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', pros: 'คุ้มสุด เร็ว ภาษาไทยดี เหมาะกับเกมทั่วไป', usd: 0.002 * n, thb: 0.066 * n },
+        { id: 'deepseek/deepseek-chat-v3.1', name: 'DeepSeek V3.1', pros: 'ถูกมาก แปลได้ดี แต่บางครั้งช้า', usd: 0.001 * n, thb: 0.033 * n },
+        { id: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5', pros: 'สำนวนดีที่สุด เหมาะกับเกมเน้นเนื้อเรื่อง ราคาสูง', usd: 0.03 * n, thb: 0.99 * n }] }; }
+      case 'translate': {
+        const todo = src.filter(s => !tr[s]); job = { running: true, done: 0, total: todo.length, msg: 'กำลังเริ่ม' };
+        const tick = setInterval(() => { const s = todo[job.done]; tr[s] = th[s]; job.done++; job.msg = `แปลแล้ว ${job.done}/${job.total}`;
+          if (job.done >= job.total) { clearInterval(tick); job.running = false; job.msg = 'แปลเสร็จแล้ว'; } }, 350);
+        return { ok: true };
+      }
+      case 'progress': return { ...job };
+      case 'stop': job.running = false; return { ok: true };
+      case 'lines': {
+        const q = (b.q || '').toLowerCase();
+        const rows = src.map((s, i) => ({ src: s, tgt: tr[s] || '', kind: kinds[i], file: i < 4 ? 'Items.json' : 'Map001.json', origin: tr[s] ? (org[s] || 'f') : '' }))
+          .filter(r => (b.filter !== 'todo' || !r.tgt) && (!q || (r.src + r.tgt).toLowerCase().includes(q)));
+        return { total: rows.length, rows };
+      }
+      case 'edit': if (b.tgt) { tr[b.src] = b.tgt; org[b.src] = 'h'; } else delete tr[b.src]; return { ok: true };
+      case 'glossary': gl = b.glossary; return { ok: true };
+      case 'install': installed = true; return { msg: `ติดตั้งแล้ว ${Object.keys(tr).length} ข้อความ (ตัวอย่าง)` };
+      case 'uninstall': installed = false; return { msg: 'ถอน mod แล้ว (ตัวอย่าง)' };
+      case 'export': return { filename: 'Hero Quest.moddi.json', mod: { format: 'moddi/1', title: 'Hero Quest', engine: 'RPG Maker MZ', kind: 'rpgmaker', from_lang: 'en',
+        translated_lines: Object.keys(tr).length, total_lines: src.length, entries: { ...tr }, origin: Object.fromEntries(Object.keys(tr).map(k => [k, org[k] || 'f'])), glossary: gl } };
+      case 'import': return { msg: 'นำเข้าแล้ว (ตัวอย่าง)' };
+      case 'browse': return { dir: 'C:\\Games\\Hero Quest' };
+      case 'ollama_status': return { installed: true, running: true, has_model: b.model === 'gemma3:4b', models: ['gemma3:4b'], pull: { running: false, pct: 0, msg: '' } };
+      case 'ollama_pull': return { ok: true };
+      case 'ollama_install': case 'ollama_start': return { msg: 'ตัวอย่าง' };
+    }
+  };
+})();
+
+function viewStudio(preview) {
+  const mock = preview || APP.mode !== 'app';
+  const api = async (name, body = {}) => {
+    if (mock) return Mock(name, body);
+    const r = await fetch('api/' + name, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const j = await r.json(); if (!r.ok) { toast(j.error); throw new Error(j.error); } return j;
+  };
+  let pg = 0, poll = null;
+  page(`<div class="studio">
+    <div class="row" style="justify-content:space-between">
+      <div><h1>แปลเกม</h1><span class="t2" style="font-size:14px">รองรับ RPG Maker MV/MZ และเกม Unity</span></div>
+      ${mock ? `<span class="demo-flag">ตัวอย่างหน้าตาในแอป ข้อมูลจำลอง</span>` : ''}
+    </div>
+    <div class="panel">
+      <div class="ptitle">เกม</div>
+      <div class="row" style="flex-wrap:nowrap"><input type="text" id="dir" placeholder="ที่อยู่โฟลเดอร์เกม เช่น C:\\Games\\MyGame">
+        <button class="btn sec" id="browse">${icon('folder-open')}เลือกโฟลเดอร์</button><button class="btn pri" id="detect">ตรวจเกม</button></div>
+      <div class="row" style="margin-top:8px"><button class="btn quiet" id="scan" style="padding:0">${icon('search')}หาเกม RPG Maker ใน Steam</button></div>
+      <div id="games" class="row" style="margin-top:8px"></div>
+      <div class="stats hide" id="stats"></div>
+    </div>
+    <div class="need hide" style="display:grid;gap:16px">
+      <div class="panel hide" id="unity">
+        <div class="ptitle"><span>แปลเกม Unity</span><span class="pill" id="u-badge" style="margin:0"></span></div>
+        <p class="t2" style="font-size:14px;margin:0 0 16px">moddi ติดตั้ง BepInEx กับ XUnity.AutoTranslator ลงเกม เพื่อใส่คำแปลและแปลสดระหว่างเล่น
+          ข้อความที่สแกนเจอแปลล่วงหน้าได้เลย ส่วนที่สแกนไม่เจอจะถูกแปลตอนโผล่บนจอ</p>
+        <div class="formgrid">
+          <label class="f">ภาษาต้นฉบับของเกม<select id="u-from"><option value="en">อังกฤษ</option><option value="ja">ญี่ปุ่น</option><option value="zh">จีน</option><option value="ko">เกาหลี</option></select></label>
+          <div style="display:grid;gap:8px;align-self:end;font-size:13px;color:var(--t2)">
+            <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="u-font" checked> ใช้ฟอนต์ Tahoma (แก้ภาษาไทยขึ้นเป็นกล่อง)</label>
+            <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="u-tmp"> บังคับ Tahoma กับ TextMeshPro ด้วย (ถ้าสระหรือวรรณยุกต์หาย)</label>
+            <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="u-shape"> จัดสระวรรณยุกต์ (ทดลอง ใช้เมื่อสระลอยหรือซ้อนกัน ถ้าสระหายให้ปิด)</label>
+          </div>
+        </div>
+        <div id="u-st" class="hide"></div>
+        <div class="pbar hide" id="u-pb"><i></i></div>
+        <div class="actions" id="u-act"></div>
+        <div style="margin-top:24px;padding-top:24px;border-top:1px solid var(--line)">
+          <div class="ptitle" style="margin-bottom:8px"><span>สแกนหาข้อความล่วงหน้า</span><button class="btn sec" id="u-scan">${icon('search')}สแกนหาข้อความในเกม</button></div>
+          <p class="t3" style="font-size:13px;margin:0">ดึงข้อความจากไฟล์ภาษา ไฟล์ asset และโค้ดของเกม เพื่อแปลทั้งเกมโดยไม่ต้องเล่น แต่ละเกมดึงได้ไม่เท่ากัน ส่วนที่ขาดระบบแปลสดจะเก็บให้ตอนเล่น</p>
+          <div class="hide" id="s-st"></div><div class="pbar hide" id="s-pb"><i></i></div>
+          <div id="s-list" style="margin-top:16px;display:grid;gap:8px"></div>
+        </div>
+        <ol class="steps" style="margin-top:24px" id="u-steps">
+          <li><span>กดติดตั้งระบบแปล (ครั้งแรกครั้งเดียว ต้องต่อเน็ต)</span></li>
+          <li><span>กดสแกนหาข้อความ เลือกแหล่งที่ต้องการ แล้วกดแปลด้านล่าง ระบบใส่คำแปลลงเกมให้เอง</span></li>
+          <li><span>เปิดเกมเล่น ข้อความที่สแกนไม่เจอจะถูกแปลสดระหว่างเล่น (เปิด moddi ทิ้งไว้)</span></li>
+          <li><span>ตรวจแก้คำแปลด้านล่าง แล้วกดติดตั้ง ในเกมกด Alt+R เพื่อโหลดคำแปลใหม่</span></li>
+        </ol>
+      </div>
+      <div class="panel">
+        <div class="ptitle"><span>วิธีแปล</span><button class="btn quiet" id="mockbtn" style="font-size:12px;height:auto;padding:0">โหมดทดสอบระบบ</button></div>
+        <div class="modes" id="be">
+          <button data-b="ollama" class="on"><b>แปลด่วน</b><span>แปลทันทีในเครื่อง พอเล่นได้</span><span class="tag">ฟรี · ออฟไลน์</span></button>
+          <button data-b="api"><b>แปลพรีเมียม</b><span>AI ตัวท็อป เลือกโมเดลได้ บอกราคาก่อนแปล</span><span class="tag">จ่ายตามจริง · ออนไลน์</span></button>
+          <button data-b="manual"><b>แปลเอง / เกลาภาษา</b><span>ดูต้นฉบับกับคำแปลทีละบรรทัด แล้วแปลหรือแก้เอง</span><span class="tag">คนแปล</span></button>
+          <button data-b="mock" class="hide"><b>ทดสอบระบบ</b><span>ไม่แปลจริง ใช้เช็กว่าระบบทำงาน</span><span class="tag">ทดสอบ</span></button>
+        </div>
+        <div id="cfg-ollama" style="margin-top:16px">
+          <div class="formgrid"><label class="f">โมเดล<select id="m-pick">
+              <option value="gemma3:4b">gemma3:4b · เครื่องทั่วไป · โหลด 3.3 GB</option>
+              <option value="gemma3:12b">gemma3:12b · การ์ดจอ 12 GB ขึ้นไป · โหลด 8 GB</option>
+              <option value="custom">ใส่ชื่อโมเดลเอง</option></select></label>
+            <label class="f hide" id="m-custom-l">ชื่อโมเดล Ollama<input type="text" id="m-ollama" placeholder="เช่น qwen3:8b"></label></div>
+          <div id="ol-st" class="note">${icon('loader')}<span>กำลังตรวจตัวแปลออฟไลน์</span></div>
+          <div class="row" id="ol-act" style="margin-top:12px"></div>
+        </div>
+        <div id="cfg-api" class="hide" style="margin-top:16px">
+          <div class="t2" style="font-size:14px" id="q-head">กำลังประเมินราคา</div>
+          <div class="models" id="q-models"></div>
+          <div class="formgrid" style="margin-top:16px">
+            <label class="f">API key ของ OpenRouter<input type="password" id="key" placeholder="sk-or-..."></label>
+            <label class="f">หรือใส่ชื่อโมเดลเอง<input type="text" id="m-api" placeholder="เช่น google/gemini-2.5-flash"></label>
+          </div>
+          <details style="margin-top:12px"><summary class="t3" style="font-size:13px;cursor:pointer">ใช้ผู้ให้บริการอื่น (OpenAI, Typhoon ฯลฯ)</summary>
+            <label class="f" style="margin-top:8px">ที่อยู่ API<input type="text" id="base" placeholder="https://openrouter.ai/api/v1"></label></details>
+          <p class="t3" style="font-size:12px;margin:12px 0 0">ราคาเป็นค่าประมาณจากจำนวนข้อความที่ยังไม่แปล คิดจากราคาล่าสุดของ OpenRouter ราคาจริงอาจต่างได้ราว 30% และจ่ายให้ผู้ให้บริการโดยตรงผ่าน API key ของคุณ</p>
+        </div>
+        <div id="cfg-manual" class="hide" style="margin-top:16px">
+          <p class="t2" style="font-size:14px;margin:0">ดูต้นฉบับ คำแปลตอนนี้ และเขียนคำแปลของคุณทีละบรรทัด บรรทัดที่คุณแปลหรือเกลาจะนับเป็น "คนเกลา"</p>
+          <div class="actions"><button class="btn pri" id="rf-open">${icon('languages')}เริ่มแปล / เกลาทีละบรรทัด</button></div>
+        </div>
+        <p class="t3 hide" id="u-tnote" style="font-size:13px;margin:16px 0 0">เกม Unity ใช้ตัวแปลนี้ตอนเล่นเกม ตั้งค่าแล้วไม่ต้องกดอะไรเพิ่ม</p>
+        <div class="actions" id="go-row"><button class="btn pri" id="go">${icon('play')}แปลทั้งเกม</button><button class="btn sec hide" id="stop">${icon('square')}หยุด</button>
+          <span class="t3" style="font-size:13px" id="go-hint">บรรทัดที่แปลแล้วจะไม่แปลซ้ำ</span></div>
+        <div id="go-prog"><div class="pbar"><i id="pb"></i></div><div class="barlabel"><span id="pmsg"></span><span class="mono" id="pnum"></span></div></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle"><span>ตรวจและแก้คำแปล <span class="t3" style="font-size:12px;font-weight:400">· พิมพ์แล้วบันทึกอัตโนมัติ กดติดตั้งเพื่อใส่ลงเกม</span></span>
+          <div class="row" style="flex-wrap:nowrap"><input type="search" id="eq" placeholder="ค้นหา" style="width:200px"><select id="ef" style="width:140px"><option value="">ทั้งหมด</option><option value="todo">ยังไม่แปล</option></select></div></div>
+        <table class="ed"><thead><tr><th>ต้นฉบับ</th><th>ภาษาไทย</th></tr></thead><tbody id="rows"></tbody></table>
+        <div class="pager"><button class="btn quiet" id="prev">ก่อนหน้า</button><span id="pinfo" class="mono"></span><button class="btn quiet" id="next">ถัดไป</button></div>
+        <details style="margin-top:24px"><summary class="t2" style="cursor:pointer;font-size:14px">อภิธานศัพท์ บังคับชื่อตัวละครและสกิลให้แปลเหมือนกันทั้งเกม</summary>
+          <p class="t3" style="font-size:13px">บรรทัดละคำ รูปแบบ <span class="mono">ต้นฉบับ = คำไทย</span></p>
+          <textarea id="gl" rows="4"></textarea><div class="row" style="margin-top:8px"><button class="btn sec" id="glsave">บันทึก</button></div></details>
+      </div>
+      <div class="panel">
+        <div class="ptitle">ติดตั้งและแชร์</div>
+        <div class="row"><button class="btn pri" id="play">${icon('play')}ติดตั้งแล้วเปิดเกม</button><button class="btn sec" id="inst">ติดตั้งอย่างเดียว</button>
+          <button class="btn danger" id="unin">ถอน mod</button></div>
+        <div class="upl"><div><b>อัพลงคลัง</b><p class="t2">แปลยังไม่เสร็จก็อัพได้ คลังจะโชว์จำนวนบรรทัดที่แปลแล้ว คนอื่นโหลดไปแปลหรือเกลาต่อได้ ทุกครั้งที่อัพจะรวมกับงานล่าสุดในคลัง งานของใครก็ไม่หาย</p><p class="t3 mono" id="up-last"></p></div>
+          <button class="btn pri" id="up">${icon('upload')}อัพลงคลัง</button></div>
+        <div class="actions"><label class="f" style="width:240px">ชื่อผู้แปลในไฟล์ mod<input type="text" id="tname"></label>
+          <button class="btn sec" id="exp" style="align-self:end">${icon('download')}ส่งออกไฟล์ mod</button>
+          <label class="btn quiet" style="align-self:end">${icon('upload')}นำเข้าไฟล์ mod<input type="file" accept=".json" class="hide" id="imp"></label></div>
+        <p class="t3" style="font-size:13px;margin:16px 0 0">ไฟล์ mod มีแค่ข้อความคำแปล ไม่มีไฟล์เกม ส่วนฟอนต์ไทยแอปใส่ให้เองตอนติดตั้ง</p>
+      </div>
+    </div>
+  </div>`);
+  const dir = () => $('#dir').value.trim();
+  const be = () => $('#be .on').dataset.b;
+  let quote = null, lastR = null;
+  const apiModel = () => $('#m-api').value.trim() || ($('#q-models input:checked') || {}).value || '';
+  const goLabel = () => {
+    const b = be();
+    if (b === 'api') {
+      const m = quote && quote.models.find(x => x.id === apiModel());
+      $('#go').innerHTML = icon('play') + (m ? `แปลด้วย ${esc(m.name)} · ประมาณ ${m.thb.toLocaleString(undefined, { maximumFractionDigits: 2 })} บาท` : 'แปลพรีเมียม');
+    } else $('#go').innerHTML = icon('play') + (lastR && lastR.kind === 'unity' ? 'แปลข้อความที่สแกนได้' : 'แปลทั้งเกม');
+  };
+  async function loadQuote() {
+    $('#q-head').textContent = 'กำลังประเมินราคา';
+    quote = await api('premium_quote', { dir: dir() }).catch(() => null);
+    if (!quote) return;
+    $('#q-head').innerHTML = quote.lines ? `เหลือ <span class="mono">${quote.lines.toLocaleString()}</span> บรรทัดที่ยังไม่แปล · ราคาประมาณสำหรับเกมนี้` : 'แปลครบทุกบรรทัดแล้ว ไม่มีค่าใช้จ่าย';
+    const saved = store.get('premiumModel') || 'google/gemini-2.5-flash';
+    $('#q-models').innerHTML = (quote.error ? `<div class="note warn">${icon('circle-alert')}<span>${esc(quote.error)}</span></div>` : '') +
+      quote.models.map(m => `<label><input type="radio" name="qm" value="${esc(m.id)}" ${m.id === saved ? 'checked' : ''}>
+        <span><span class="nm">${esc(m.name)}</span><span class="ps">${esc(m.pros)}</span></span>
+        <span class="pr">${m.thb < 1 ? '< 1' : '≈ ' + Math.ceil(m.thb).toLocaleString()} ฿<small>$${m.usd.toFixed(m.usd < 1 ? 3 : 2)}</small></span></label>`).join('');
+    if (!$('#q-models input:checked') && $('#q-models input')) $('#q-models input').checked = true;
+    $$('#q-models input').forEach(i => i.onchange = () => { store.set('premiumModel', i.value); $('#m-api').value = ''; goLabel(); });
+    goLabel();
+  }
+  $('#m-api').oninput = goLabel;
+  const showMode = () => {
+    const b = be();
+    $('#cfg-ollama').classList.toggle('hide', b !== 'ollama'); $('#cfg-api').classList.toggle('hide', b !== 'api');
+    $('#cfg-manual').classList.toggle('hide', b !== 'manual');
+    const canGo = lastR ? (lastR.kind !== 'unity' || (lastR.scan && lastR.scan.selected.length > 0)) : true;
+    $('#go-row').classList.toggle('hide', b === 'manual' || !canGo); $('#go-prog').classList.toggle('hide', b === 'manual' || !canGo);
+    if (b === 'api' && lastR) loadQuote();
+    goLabel();
+  };
+  $$('#be button').forEach(b => b.onclick = () => { $$('#be button').forEach(x => x.classList.toggle('on', x === b)); showMode(); });
+  $('#mockbtn').onclick = () => { const m = $('#be [data-b=mock]'); m.classList.remove('hide'); m.click(); };
+  $('#rf-open').onclick = async () => {
+    const r = await api('lines', { dir: dir(), all: true });
+    refineView({ title: (lastR && lastR.title) || 'เกม', sub: 'ในแอป', rows: r.rows, back: location.hash.slice(1) || 'translate',
+      note: 'บันทึกลงโปรเจกต์ทันที กดติดตั้งเพื่อใส่คำแปลใหม่ลงเกม',
+      save: (src, v) => api('edit', { dir: dir(), src, tgt: v }) });
+  };
+
+  const model = () => $('#m-pick').value === 'custom' ? ($('#m-ollama').value.trim() || 'gemma3:4b') : $('#m-pick').value;
+  $('#m-pick').onchange = () => { $('#m-custom-l').classList.toggle('hide', $('#m-pick').value !== 'custom'); olCheck(); };
+  $('#m-ollama').onchange = olCheck;
+  let olPoll = null;
+  async function olCheck() {
+    const st = await api('ollama_status', { model: model() }).catch(() => null);
+    const box = $('#ol-st'), act = $('#ol-act');
+    if (!st) return;
+    const btn = (id, label, cls = 'sec') => `<button class="btn ${cls}" id="${id}">${label}</button>`;
+    if (st.pull.running) {
+      note(box, 'warn', `${st.pull.msg} (${st.pull.pct}%)`); act.innerHTML = '';
+      clearTimeout(olPoll); olPoll = setTimeout(olCheck, 1000); return;
+    }
+    const stepper = n => `<div class="olsteps">${['ติดตั้ง Ollama', 'เปิด Ollama', 'โหลดโมเดล'].map((t, i) =>
+      `<span class="${i < n ? 'done' : i === n ? 'now' : ''}">${i < n ? icon('check') : `<b>${i + 1}</b>`}${t}</span>`).join('')}</div>`;
+    const others = (st.models || []).filter(m => m !== model() && m !== model() + ':latest');
+    if (!st.installed) { note(box, '', 'ขั้นที่ 1: ติดตั้ง Ollama โปรแกรมฟรีที่ใช้รันตัวแปลในเครื่อง');
+      act.innerHTML = stepper(0) + btn('ol-install', icon('download') + 'ติดตั้ง Ollama', 'pri') + btn('ol-recheck', 'ตรวจอีกครั้ง', 'quiet'); }
+    else if (!st.running) { note(box, '', 'ขั้นที่ 2: ติดตั้ง Ollama แล้ว แต่ยังไม่ได้เปิด');
+      act.innerHTML = stepper(1) + btn('ol-start', icon('play') + 'เปิด Ollama', 'pri') + btn('ol-recheck', 'ตรวจอีกครั้ง', 'quiet'); }
+    else if (!st.has_model) { note(box, '', st.pull.msg && st.pull.msg.startsWith('โหลดโมเดลไม่สำเร็จ') ? st.pull.msg
+        : `ขั้นที่ 3: Ollama พร้อมแล้ว แต่ยังไม่มีโมเดล ${model()} ในเครื่อง ต้องโหลดครั้งเดียว` + (others.length ? ` · ในเครื่องมี ${others.join(', ')} อยู่แล้ว` : ''));
+      act.innerHTML = stepper(2) + btn('ol-pull', icon('download') + 'โหลดโมเดล ' + esc(model()), 'pri')
+        + others.slice(0, 3).map((m, i) => `<button class="btn sec" data-use="${esc(m)}">ใช้ ${esc(m)} ที่มีอยู่แล้ว</button>`).join(''); }
+    else { note(box, 'ok', `พร้อมแปล ใช้โมเดล ${model()} ในเครื่อง`); act.innerHTML = stepper(3); }
+    act.querySelectorAll('[data-use]').forEach(b => b.onclick = () => {
+      const m = b.dataset.use.replace(/:latest$/, '');
+      if ([...$('#m-pick').options].some(o => o.value === m)) $('#m-pick').value = m;
+      else { $('#m-pick').value = 'custom'; $('#m-ollama').value = m; $('#m-custom-l').classList.remove('hide'); }
+      olCheck();
+    });
+    const on = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+    on('ol-install', async () => { toast((await api('ollama_install')).msg); });
+    on('ol-start', async () => { toast((await api('ollama_start')).msg); setTimeout(olCheck, 2500); });
+    on('ol-pull', async () => { await api('ollama_pull', { model: model() }); olCheck(); });
+    on('ol-recheck', olCheck);
+  }
+  $('#browse').onclick = async () => { const r = await api('browse'); if (r.dir) { $('#dir').value = r.dir; detect(); } };
+
+  function engineCard(r) {
+    const sp = r.support; if (!sp) return '';
+    const col = sp.pct >= 80 ? 'var(--pos)' : sp.pct > 0 ? 'var(--acc)' : 'var(--neg)';
+    return `<div class="engcard">
+      <div class="eh"><div><div class="l">เอนจินของเกมนี้</div><div class="en">${esc(sp.engine || r.engine)}</div></div>
+        <div style="text-align:right"><div class="l">moddi แปลได้</div><div class="ep mono" style="color:${col}">${esc(sp.label)}</div><div class="l">${esc(sp.level)}</div></div></div>
+      <div class="bar"><i style="width:${sp.pct}%;background:${col}"></i></div>
+      <div class="ecols">${sp.can.length ? `<div><div class="l">แปลได้</div><ul>${sp.can.map(x => `<li>${icon('check')}${esc(x)}</li>`).join('')}</ul></div>` : ''}
+        <div><div class="l">${sp.pct ? 'ยังแปลไม่ได้' : 'เหตุผล'}</div><ul class="no">${sp.cannot.map(x => `<li>${icon('x')}${esc(x)}</li>`).join('')}</ul></div></div>
+      <p class="t3" style="font-size:12px;margin:12px 0 0">ตัวเลขเป็นค่าประมาณตามความสามารถของ moddi กับเอนจินนี้ แต่ละเกมอาจได้มากหรือน้อยกว่านี้</p>
+    </div>`;
+  }
+  async function detect() {
+    const r = await api('detect', { dir: dir() });
+    store.set('lastDir', dir());
+    $('#stats').classList.remove('hide');
+    if (r.kind === 'unsupported') {
+      $('.need').classList.add('hide');
+      $('#stats').innerHTML = `<div style="grid-column:1/-1">${engineCard(r)}</div>`;
+      lastR = r; return;
+    }
+    $('.need').classList.remove('hide');
+    const pct = Math.round(100 * r.translated / Math.max(1, r.lines));
+    const U = r.kind === 'unity';
+    $('#stats').innerHTML = `<div style="grid-column:1/-1">${engineCard(r)}</div>
+      <div class="stat"><div class="l">${esc(r.engine)}</div><div class="v sm">${esc(r.title || '-')}</div></div>
+      <div class="stat"><div class="l">${U ? 'ข้อความที่เจอแล้ว' : 'ข้อความทั้งหมด'}</div><div class="v mono">${r.lines.toLocaleString()}</div>
+        ${U ? `<div class="t3 mono" style="font-size:12px;margin-top:4px">สแกน ${(r.found_scan || 0).toLocaleString()} · ระหว่างเล่น ${(r.found_live || 0).toLocaleString()}</div>` : ''}</div>
+      <div class="stat"><div class="l">${U ? 'แปลแล้ว (จากที่เจอ)' : 'แปลแล้ว'}</div><div class="v mono">${pct}%</div></div>
+      <div class="stat"><div class="l">สถานะ</div><div class="v sm">${r.installed ? 'ติดตั้ง mod อยู่' : 'ยังไม่ได้ติดตั้ง'}</div></div>
+      <div style="grid-column:1/-1">${stackBar(r.stats)}
+        ${U ? `<p class="t3" style="font-size:12px;margin:8px 0 0">เกม Unity นับเฉพาะข้อความที่สแกนเจอหรือโผล่ระหว่างเล่นแล้ว ไม่ใช่ทั้งเกม ยิ่งสแกนเจอเยอะหรือเล่นไปไกล ตัวเลขยิ่งใกล้ทั้งเกม</p>` : ''}</div>`;
+    $('#gl').value = Object.entries(r.glossary || {}).map(([k, v]) => `${k} = ${v}`).join('\n');
+    const isU = r.kind === 'unity';
+    const ac = (r.anticheat || []).length > 0;
+    let acBox = $('#acwarn');
+    if (!acBox) { acBox = document.createElement('div'); acBox.id = 'acwarn'; $('#stats').after(acBox); }
+    if (ac) note(acBox, 'bad', `เกมนี้มีระบบกันโกง (${r.anticheat.join(', ')}) moddi จะไม่ติดตั้งอะไรลงเกมนี้ เพราะอาจทำให้โดนแบนไอดี ยังแปลและส่งออกไฟล์ mod ได้ แต่ไม่ควรเอาไปใช้กับเกมออนไลน์`);
+    else acBox.className = 'hide';
+    ['#play', '#inst'].forEach(q => { const b = $(q); if (b) b.disabled = ac; });
+    $('#unity').classList.toggle('hide', !isU); $('#u-tnote').classList.toggle('hide', !isU);
+    const canGo = !isU || (r.scan && r.scan.selected.length > 0);
+    lastR = r; showMode();
+    $('#u-tnote').classList.toggle('hide', !isU || canGo);
+    if (isU) unityPanel(r);
+    lines(0);
+  }
+  function renderScan(r) {
+    const box = $('#s-list');
+    if (!r.scan) { box.innerHTML = ''; return; }
+    const sel = new Set(r.scan.selected);
+    const kinds = { file: 'ไฟล์ภาษา', asset: 'asset', code: 'โค้ด' };
+    box.innerHTML = (r.scan.assets_ok ? '' : `<div class="note warn">${icon('circle-alert')}<span>ติดตั้งตัวอ่านไฟล์ Unity ไม่สำเร็จ เลยสแกนได้แค่ไฟล์ภาษาและโค้ด ดูรายละเอียดใน log.txt</span></div>`)
+      + (r.scan.sources.length ? r.scan.sources.map(x => `<label class="srcrow"><input type="checkbox" data-sid="${esc(x.id)}" ${sel.has(x.id) ? 'checked' : ''}>
+        <span><span class="srcname">${esc(x.label)}</span> <span class="t3 mono" style="font-size:12px">${x.count.toLocaleString()} · ${kinds[x.kind] || x.kind}</span>
+        <span class="t3 srcsample">${x.samples.map(esc).join(' · ')}</span></span></label>`).join('')
+        : '<p class="t3" style="font-size:13px;margin:0">ไม่เจอข้อความที่ดึงล่วงหน้าได้ เกมนี้ต้องแปลระหว่างเล่น</p>')
+      + (r.scan.sources.some(x => x.kind === 'code') ? '<p class="t3" style="font-size:12px;margin:4px 0 0">ข้อความในโค้ดมักปนข้อความที่ผู้เล่นไม่เห็น เลยไม่ได้เลือกไว้ให้ ดูตัวอย่างก่อนค่อยติ๊ก</p>' : '');
+    box.querySelectorAll('[data-sid]').forEach(c => c.onchange = async () => {
+      await api('unity_select', { dir: dir(), selected: [...box.querySelectorAll('[data-sid]:checked')].map(x => x.dataset.sid) });
+      detect();
+    });
+  }
+  function unityPanel(r) {
+    $('#u-from').value = r.from_lang || 'en'; $('#u-font').checked = r.font_fix !== false; $('#u-shape').checked = !!r.thai_shape; $('#u-tmp').checked = !!r.tmp_font;
+    $('#u-badge').textContent = r.il2cpp ? 'IL2CPP · ทดลอง' : 'Mono';
+    const st = $('#u-st'), act = $('#u-act');
+    if (r.il2cpp) note(st, 'warn', 'เกมนี้เป็น Unity แบบ IL2CPP ระบบแปลรองรับแบบทดลอง บางข้อความอาจไม่ถูกแปล');
+    else st.className = 'hide';
+    if ((r.anticheat || []).length) act.innerHTML = '<span class="t3" style="font-size:13px">ติดตั้งระบบแปลไม่ได้ เพราะเกมนี้มีระบบกันโกง</span>';
+    else if (!r.runtime) act.innerHTML = `<button class="btn pri" id="u-setup">${icon('download')}ติดตั้งระบบแปล</button>`;
+    else act.innerHTML = `<button class="btn pri" id="u-play">${icon('play')}เปิดเกม</button>
+      <button class="btn sec" id="u-refresh">รีเฟรชข้อความ</button>
+      <button class="btn quiet" id="u-live">${r.live ? 'ปิดแปลสด' : 'เปิดแปลสด'}</button>
+      <span class="t3" style="font-size:13px">${r.live ? 'แปลสดเปิดอยู่' : 'แปลสดปิดอยู่ เกมใช้แค่คำแปลที่มี'}</span>`;
+    const on = (id, fn) => { const b = document.getElementById(id); if (b) b.onclick = fn; };
+    const opts = () => ({ dir: dir(), from_lang: $('#u-from').value, font_fix: $('#u-font').checked, thai_shape: $('#u-shape').checked, tmp_font: $('#u-tmp').checked });
+    on('u-setup', async () => {
+      await api('unity_setup', opts()); $('#u-pb').classList.remove('hide');
+      const t = setInterval(async () => { const p = await api('unity_progress');
+        $('#u-pb i').style.width = '100%'; $('#u-pb i').style.transform = `scaleX(${p.pct / 100})`; note(st, p.running ? 'warn' : (p.pct >= 100 ? 'ok' : 'bad'), p.msg);
+        if (!p.running) { clearInterval(t); $('#u-pb').classList.add('hide'); if (p.pct >= 100) detect(); } }, 600);
+    });
+    on('u-play', async () => { toast((await api('install', { dir: dir(), play: true })).msg); });
+    on('u-refresh', detect);
+    on('u-live', async () => { toast((await api('unity_live', { ...opts(), on: !r.live })).msg); detect(); });
+    renderScan(r);
+    const runScan = async (force = false) => {
+      const res = await api('unity_scan', { dir: dir(), from_lang: $('#u-from').value, force });
+      const sst = $('#s-st'), pb = $('#s-pb');
+      if (res.already) {
+        sst.className = 'note ok';
+        sst.innerHTML = `${icon('check')}<span>สแกนไฟล์เรียบร้อยแล้ว${res.when ? ' เมื่อ ' + esc(res.when) : ''} เจอ ${res.total.toLocaleString()} ข้อความ ไฟล์เกมยังเหมือนเดิม สแกนซ้ำก็ได้ผลเท่าเดิม
+          กรุณาสแกนใหม่เมื่อเกมอัปเดตเวอร์ชัน หรือเพิ่ม DLC ส่วนข้อความระหว่างเล่นไม่ต้องสแกน กดรีเฟรชข้อความได้เลย
+          <button class="btn quiet" id="s-force" style="height:auto;padding:0;margin-left:4px;text-decoration:underline">สแกนซ้ำอยู่ดี</button></span>`;
+        $('#s-force').onclick = () => runScan(true);
+        return;
+      }
+      pb.classList.remove('hide');
+      const t = setInterval(async () => { const p = await api('unity_scan_progress');
+        pb.querySelector('i').style.width = '100%'; pb.querySelector('i').style.transform = `scaleX(${p.pct / 100})`;
+        note(sst, p.running ? 'warn' : 'ok', p.msg);
+        if (!p.running) { clearInterval(t); pb.classList.add('hide'); detect(); } }, 700);
+    };
+    $('#u-scan').onclick = () => runScan(false);
+    $('#u-from').onchange = $('#u-font').onchange = $('#u-shape').onchange = $('#u-tmp').onchange = async () => { if (r.runtime) { await api('unity_live', { ...opts(), on: r.live }); toast('บันทึกการตั้งค่าแล้ว มีผลตอนเปิดเกมครั้งถัดไป'); } };
+  }
+  async function lines(p) {
+    if (p < 0) return;
+    const r = await api('lines', { dir: dir(), q: $('#eq').value, filter: $('#ef').value, page: p });
+    if (p > 0 && !r.rows.length) return;
+    pg = p; $('#pinfo').textContent = `${p + 1} / ${Math.max(1, Math.ceil(r.total / 50))}`;
+    $('#rows').innerHTML = r.rows.map((x, i) => `<tr><td class="src"><small>${esc(x.kind)} · ${esc(x.file)}</small><span class="clip">${esc(x.src)}</span></td>
+      <td><textarea data-i="${i}" rows="${x.src.split('\n').length + 1}" aria-label="คำแปล">${esc(x.tgt)}</textarea></td></tr>`).join('');
+    $$('#rows textarea').forEach(t => t.onchange = async () => { await api('edit', { dir: dir(), src: r.rows[t.dataset.i].src, tgt: t.value });
+      t.classList.add('saved'); setTimeout(() => t.classList.remove('saved'), 900); toast('บันทึกแล้ว · กดติดตั้งเพื่อใส่คำแปลลงเกม'); });
+  }
+  $('#detect').onclick = detect;
+  $('#scan').onclick = async () => { const r = await api('scan');
+    $('#games').innerHTML = r.games.length ? r.games.map(g => `<button class="btn sec" data-d="${esc(g.dir)}">${esc(g.title)}<span class="t3">${esc(g.engine)}</span></button>`).join('')
+      : '<span class="t3" style="font-size:13px">ไม่เจอเกม RPG Maker ในโฟลเดอร์ Steam วางที่อยู่เองได้เลย</span>';
+    $$('#games [data-d]').forEach(b => b.onclick = () => { $('#dir').value = b.dataset.d; $('#games').innerHTML = ''; detect(); }); };
+  $('#go').onclick = async () => {
+    if (be() === 'api' && !mock && !$('#key').value.trim()) { toast('ใส่ API key ก่อน (สมัครฟรีที่ openrouter.ai แล้วเติมเงินตามที่ใช้)'); return; }
+    await api('translate', { dir: dir(), settings: { backend: be(), model: be() === 'api' ? apiModel() : model(),
+      base_url: $('#base').value.trim() || 'https://openrouter.ai/api/v1', api_key: $('#key').value.trim() } });
+    $('#go').disabled = true; $('#stop').classList.remove('hide');
+    poll = setInterval(async () => { const p = await api('progress');
+      $('#pb').style.width = '100%'; $('#pb').style.transform = `scaleX(${p.total ? p.done / p.total : 0})`;
+      $('#pmsg').textContent = p.msg; $('#pnum').textContent = p.total ? `${p.done}/${p.total}` : '';
+      $('#go-hint').textContent = p.running && lastR && lastR.kind === 'unity' ? 'คำแปลถูกใส่ลงเกมทุก 1 นาที ในเกมกด Alt+R เพื่อโหลดใหม่' : 'บรรทัดที่แปลแล้วจะไม่แปลซ้ำ';
+      if (!p.running) { clearInterval(poll); $('#go').disabled = false; $('#stop').classList.add('hide'); detect(); } }, 500);
+  };
+  $('#stop').onclick = () => api('stop');
+  $('#eq').oninput = () => { clearTimeout(window._qt); window._qt = setTimeout(() => lines(0), 300); };
+  $('#ef').onchange = () => lines(0);
+  $('#prev').onclick = () => lines(pg - 1); $('#next').onclick = () => lines(pg + 1);
+  $('#glsave').onclick = async () => { const g = {}; $('#gl').value.split('\n').forEach(l => { const k = l.indexOf('='); if (k > 0) g[l.slice(0, k).trim()] = l.slice(k + 1).trim(); });
+    await api('glossary', { dir: dir(), glossary: g }); toast('บันทึกอภิธานศัพท์แล้ว'); };
+  $('#play').onclick = async () => { toast((await api('install', { dir: dir(), play: true })).msg); detect(); };
+  $('#inst').onclick = async () => { toast((await api('install', { dir: dir() })).msg); detect(); };
+  $('#unin').onclick = async () => { toast((await api('uninstall', { dir: dir() })).msg); detect(); };
+  $('#exp').onclick = async () => {
+    await api('settings', { save: { translator_name: $('#tname').value.trim() } });
+    const r = await api('export', { dir: dir() });
+    if (!mock) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(r.mod, null, 1)], { type: 'application/json' })); a.download = r.filename; a.click(); }
+    toast(`ส่งออกแล้ว ${r.mod.translated_lines}/${r.mod.total_lines} ข้อความ`);
+  };
+  $('#up').onclick = async () => {
+    if (!Auth.user) return Auth.open(location.hash.slice(1));
+    const b = $('#up'); b.disabled = true;
+    try {
+      const r = await api('export', { dir: dir() });
+      const res = await Lib.upload(r.mod);
+      if (!mock && res.from_others) await api('import', { dir: dir(), content: JSON.stringify(res.file) });
+      const st = res.file.stats, done = st.fast + st.premium + st.human;
+      $('#up-last').textContent = `อัพล่าสุด ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} · คลังมี ${done.toLocaleString()} / ${st.total.toLocaleString()} บรรทัด`;
+      toast(`อัพแล้ว เพิ่มใหม่ ${res.added.toLocaleString()} บรรทัด` + (res.from_others ? ` · ได้งานคนอื่นกลับมา ${res.from_others.toLocaleString()} บรรทัด` : ''));
+      await Lib.inject(); if (res.from_others) detect();
+    } catch (e) { toast(e.message); }
+    b.disabled = false;
+  };
+  $('#imp').onchange = async e => { const f = e.target.files[0]; if (!f) return; toast((await api('import', { dir: dir(), content: await f.text() })).msg); e.target.value = ''; detect(); };
+  (async () => {
+    const s = await api('settings');
+    const om = s.backend !== 'api' ? (s.model || 'gemma3:4b') : 'gemma3:4b';
+    if ([...$('#m-pick').options].some(o => o.value === om)) $('#m-pick').value = om; else { $('#m-pick').value = 'custom'; $('#m-ollama').value = om; $('#m-custom-l').classList.remove('hide'); }
+    if (s.backend === 'api' && s.model) store.set('premiumModel', s.model);
+    $('#base').value = s.base_url || ''; $('#key').value = s.api_key || ''; $('#tname').value = s.translator_name || '';
+    const b = $(`#be [data-b="${s.backend || 'ollama'}"]`); if (b) b.click();
+    olCheck();
+    const last = mock ? 'C:\\Games\\Hero Quest' : store.get('lastDir');
+    if (last) { $('#dir').value = last; detect().catch(() => {}); }
+  })();
+}
+
+// ================================================================ auth (Google ผ่าน Supabase)
+const Auth = {
+  user: null, client: null, demo: true, after: null,
+  async init() {
+    const h = CAT.hub || {};
+    if (h.supabase_url && h.supabase_anon_key) {
+      try {
+        await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+        this.client = window.supabase.createClient(h.supabase_url, h.supabase_anon_key);
+        this.demo = false;
+        const { data } = await this.client.auth.getSession(); this.set(data.session?.user);
+        this.client.auth.onAuthStateChange((_e, s) => { this.set(s?.user); });
+      } catch { this.demo = true; }
+    }
+    if (this.demo) this.set(store.get('demoUser'));
+    $('#login-google').onclick = () => this.signIn();
+    $('#login-cancel').onclick = () => $('#login').close();
+  },
+  set(u) {
+    this.user = u ? { id: u.id, name: u.user_metadata?.full_name || u.name || u.email, email: u.email, avatar: u.user_metadata?.avatar_url || null } : null;
+    this.render();
+  },
+  render() {
+    const u = this.user;
+    $('#auth').innerHTML = u
+      ? `<a href="#account" class="linkbtn" aria-label="บัญชีของฉัน"><span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name || '?').slice(0, 1).toUpperCase())}</span><span class="label">${esc(u.name)}</span></a>`
+      : `<button class="linkbtn" id="signin">${icon('log-in')}<span class="label">เข้าสู่ระบบ</span></button>`;
+    if (!u) $('#signin').onclick = () => this.open();
+  },
+  open(after = null) {
+    this.after = after;
+    $('#login-text').textContent = this.demo
+      ? 'โหมดตัวอย่าง: ยังไม่ได้เชื่อม Google จริง กดปุ่มด้านล่างเพื่อลองเข้าระบบด้วยบัญชีสมมติ'
+      : 'ใช้บัญชี Google เพื่อยืนยันความเป็นเจ้าของผลงานแปล และตั้งค่าช่องทางรับเงินสนับสนุน';
+    $('#login-google').textContent = this.demo ? 'ลองเข้าสู่ระบบ (บัญชีตัวอย่าง)' : 'เข้าสู่ระบบด้วย Google';
+    $('#login').showModal();
+  },
+  async signIn() {
+    if (!this.demo) {
+      await this.client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname + '#' + (this.after || 'home') } });
+      return;
+    }
+    const u = { id: 'demo', name: 'ผู้ใช้ตัวอย่าง', email: 'demo@example.com', user_metadata: {} };
+    store.set('demoUser', u); this.set(u); $('#login').close();
+    if (this.after) location.hash = this.after; else route();
+  },
+  async signOut() {
+    if (this.client) await this.client.auth.signOut();
+    store.set('demoUser', null); this.set(null); location.hash = 'home';
+  },
+  async loadRequest() {
+    if (this.demo) return store.get('demoRequest');
+    const { data } = await this.client.from('translator_requests').select('*').eq('user_id', this.user.id).order('created_at', { ascending: false }).limit(1);
+    return data && data[0];
+  },
+  async saveRequest(r) {
+    if (this.demo) { store.set('demoRequest', { ...r, status: 'pending' }); return; }
+    const { error } = await this.client.from('translator_requests').insert({ ...r, user_id: this.user.id });
+    if (error) throw new Error(error.message);
+  },
+};
+
+async function viewAccount() {
+  if (!Auth.user) { page(`<div class="empty" style="margin-top:64px"><b>ยังไม่ได้เข้าสู่ระบบ</b><button class="btn pri" id="li" style="margin-top:16px">เข้าสู่ระบบ</button></div>`);
+    $('#li').onclick = () => Auth.open('account'); return; }
+  const u = Auth.user, req = await Auth.loadRequest().catch(() => null);
+  const status = !req ? '' : req.status === 'approved' ? 'ยืนยันตัวตนแล้ว' : req.status === 'rejected' ? 'ไม่ผ่าน ติดต่อแอดมิน' : 'รอทีมงานตรวจ';
+  page(`<div class="acct">
+    <aside class="panel who-card">
+      <span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(u.name.slice(0, 1).toUpperCase())}</span>
+      <h2>${esc(u.name)}</h2><div class="t3" style="font-size:13px">${esc(u.email || '')}</div>
+      <span class="pill">${req && req.status === 'approved' ? icon('badge-check') + 'ผู้แปล' : 'ผู้เล่น'}</span>
+      ${Auth.demo ? '<p class="t3" style="font-size:12px;margin:16px 0 0">บัญชีตัวอย่าง ข้อมูลเก็บไว้ในเบราว์เซอร์นี้เท่านั้น</p>' : ''}
+      <div class="actions"><button class="btn quiet" id="so">${icon('log-out')}ออกจากระบบ</button></div>
+    </aside>
+    <div class="panel">
+      <div class="ptitle"><span>ยืนยันตัวตนผู้แปล</span>${status ? `<span class="pill" style="margin:0">${status}</span>` : ''}</div>
+      <p class="t2" style="font-size:14px;margin:0 0 24px">ยืนยันว่าเป็นเจ้าของเพจแปล เพื่อรับป้ายยืนยันตัวตน ฝากไฟล์ในคลัง และเปิดปุ่มสนับสนุนที่โอนเข้าพร้อมเพย์ของคุณโดยตรง ทีมงานจะทักไปที่เพจเพื่อยืนยันอีกครั้ง</p>
+      <form id="rf" class="formgrid">
+        <label class="f">ชื่อเพจหรือทีมแปล<input type="text" name="page_name" required value="${esc(req?.page_name || '')}"></label>
+        <label class="f">ลิงก์เพจ<input type="text" name="page_url" required placeholder="https://" value="${esc(req?.page_url || '')}"></label>
+        <label class="f full">เกมที่แปล<textarea name="games" rows="3" placeholder="บรรทัดละเกม">${esc(req?.games || '')}</textarea></label>
+        <label class="f">พร้อมเพย์สำหรับรับเงินสนับสนุน<input type="text" name="promptpay" inputmode="numeric" placeholder="เบอร์โทรหรือเลขบัตรประชาชน" value="${esc(req?.promptpay || '')}"></label>
+        <p class="t3" style="font-size:12px;margin:28px 0 0">ไม่ต้องให้เลขบัญชีธนาคาร พร้อมเพย์จะแสดงเป็น QR บนหน้าเกมของคุณเท่านั้น</p>
+        <div class="full actions" style="margin-top:8px"><button class="btn pri" type="submit">${req ? 'ส่งข้อมูลใหม่' : 'ส่งคำขอยืนยัน'}</button><span id="rmsg" class="t2" style="font-size:13px"></span></div>
+      </form>
+    </div>
+  </div>`);
+  $('#so').onclick = () => Auth.signOut();
+  $('#rf').onsubmit = async e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    if (!/^https?:\/\//.test(d.page_url)) { $('#rmsg').textContent = 'ลิงก์เพจต้องขึ้นต้นด้วย https://'; return; }
+    const pp = d.promptpay.replace(/\D/g, '');
+    if (pp && ![10, 13, 15].includes(pp.length)) { $('#rmsg').textContent = 'พร้อมเพย์ต้องเป็นเบอร์ 10 หลัก หรือเลข 13 หลัก'; return; }
+    try { await Auth.saveRequest({ ...d, promptpay: pp }); viewAccount(); toast('ส่งคำขอแล้ว ทีมงานจะติดต่อกลับทางเพจ'); }
+    catch (err) { $('#rmsg').textContent = err.message; }
+  };
+}
+
+// ================================================================ toast
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--raised);border:1px solid var(--line2);border-radius:10px;padding:12px 16px;font-size:14px;z-index:50;max-width:calc(100vw - 32px);transition:opacity .2s var(--ease)';
+    document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = 1; clearTimeout(t._h); t._h = setTimeout(() => t.style.opacity = 0, 3500);
+}
+
+window.addEventListener('unhandledrejection', e => e.preventDefault());
+boot();
+</script>
+</body>
+</html>
