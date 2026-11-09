@@ -55,6 +55,17 @@ jobs:
         shell: bash
         run: echo "v=$(tr -d '[:space:]' < app/VERSION)" >> "$GITHUB_OUTPUT"
 
+      - name: เตรียม repo moddi-releases (ต้องมีอย่างน้อย 1 ไฟล์)
+        if: ${{ env.RELEASES_TOKEN != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          gh api repos/crowmainew-blip/moddi-releases/contents/README.md >/dev/null 2>&1 || \
+          gh api -X PUT repos/crowmainew-blip/moddi-releases/contents/README.md \
+            -f message="moddi releases" \
+            -f content="$(printf '# moddi\n\nดาวน์โหลด moddi.exe ได้ที่หน้า Releases · https://moddith.vercel.app\n' | base64 -w0)"
+
       # repo โค้ดเป็น Private → ปล่อยไฟล์ให้คนโหลดที่ repo สาธารณะ moddi-releases
       - name: Release (moddi-releases)
         if: ${{ env.RELEASES_TOKEN != '' }}
