@@ -1,7 +1,7 @@
 {
  "hub": {
   "name": "moddi",
-  "app_download_url": "https://github.com/crowmainew-blip/Moddi/releases/latest/download/moddi.exe",
+  "app_download_url": "https://github.com/crowmainew-blip/moddi-releases/releases/latest/download/moddi.exe",
   "supabase_url": "https://qugxiyzpwhvuxqfchrao.supabase.co",
   "supabase_anon_key": "sb_publishable_Pfa5ipqxXx2QDzOPce8a9g_58xez-mi",
   "promptpay": "088986000656071",

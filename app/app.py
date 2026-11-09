@@ -817,7 +817,7 @@ def _log(text):
 
 
 # ---------------------------------------------------------------- อัปเดตตัวเอง (เฉพาะ moddi.exe)
-REPO = "crowmainew-blip/Moddi"
+REPO = "crowmainew-blip/moddi-releases"
 LATEST = f"https://github.com/{REPO}/releases/latest/download/"
 
 
