@@ -14,6 +14,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +55,24 @@ jobs:
         shell: bash
         run: echo "v=$(tr -d '[:space:]' < app/VERSION)" >> "$GITHUB_OUTPUT"
 
-      - name: Release
+      # repo โค้ดเป็น Private → ปล่อยไฟล์ให้คนโหลดที่ repo สาธารณะ moddi-releases
+      - name: Release (moddi-releases)
+        if: ${{ env.RELEASES_TOKEN != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: crowmainew-blip/moddi-releases
+          token: ${{ secrets.RELEASES_TOKEN }}
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: moddi v${{ steps.ver.outputs.v }}
+          make_latest: true
+          files: |
+            dist/moddi.exe
+            latest.json
+          body: |
+            โหลด moddi.exe แล้วดับเบิลคลิกได้เลย ไม่ต้องลง Python
+            ครั้งแรก Windows อาจเตือน "Windows protected your PC" ให้กด More info → Run anyway
+
+      - name: Release (repo นี้)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.v }}
