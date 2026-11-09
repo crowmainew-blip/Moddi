@@ -3,8 +3,10 @@ name: build moddi.exe
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
+
+env:
+  PYTHONUTF8: "1"
 
 permissions:
   contents: write
@@ -41,10 +43,20 @@ jobs:
           name: moddi-exe
           path: dist/moddi.exe
 
-      # push tag เช่น v0.1.0 → สร้างหน้า Release ให้โหลด (ลิงก์ .../releases/latest/download/moddi.exe)
+      # เลขเวอร์ชันอยู่ใน app/VERSION · push ขึ้น main = อัปเดตไฟล์ใน Release ของเวอร์ชันนั้น
+      # เปลี่ยนเลขใน VERSION = ได้ Release ใหม่ (ลิงก์ .../releases/latest/download/moddi.exe ชี้ตัวล่าสุดเสมอ)
+      - name: อ่านเวอร์ชัน
+        id: ver
+        shell: bash
+        run: echo "v=$(tr -d '[:space:]' < app/VERSION)" >> "$GITHUB_OUTPUT"
+
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.ver.outputs.v }}
+          name: moddi v${{ steps.ver.outputs.v }}
+          target_commitish: ${{ github.sha }}
           files: dist/moddi.exe
-          generate_release_notes: true
+          body: |
+            โหลด moddi.exe แล้วดับเบิลคลิกได้เลย ไม่ต้องลง Python
+            ครั้งแรก Windows อาจเตือน "Windows protected your PC" ให้กด More info → Run anyway
