@@ -3531,7 +3531,7 @@ const Mock = (() => {
       case 'uninstall': installed = false; return { msg: 'ถอน mod แล้ว (ตัวอย่าง)' };
       case 'export': return { filename: 'Hero Quest.moddi.json', mod: { format: 'moddi/1', title: 'Hero Quest', engine: 'RPG Maker MZ', kind: 'rpgmaker', from_lang: 'en',
         translated_lines: Object.keys(tr).length, total_lines: src.length, entries: { ...tr }, origin: Object.fromEntries(Object.keys(tr).map(k => [k, org[k] || 'f'])), glossary: gl } };
-      case 'import': return { msg: 'นำเข้าแล้ว (ตัวอย่าง)' };
+      case 'import': if (b.only_better) return { new: 0, changed: 0 }; return { msg: 'นำเข้าแล้ว (ตัวอย่าง)' };
       case 'browse': return { dir: 'C:\\Games\\Hero Quest' };
       case 'ollama_status': return { installed: true, running: true, has_model: b.model === 'gemma3:4b', models: ['gemma3:4b'], pull: { running: false, pct: 0, msg: '' } };
       case 'ollama_pull': return { ok: true };
@@ -3775,6 +3775,7 @@ function viewStudio(preview) {
     $('#unity').classList.toggle('hide', !isU); $('#u-tnote').classList.toggle('hide', !isU);
     const canGo = !isU || (r.scan && r.scan.selected.length > 0);
     lastR = r; showMode();
+    if (await syncLib(r)) return detect();
     $('#u-tnote').classList.toggle('hide', !isU || canGo);
     if (isU) unityPanel(r);
     lines(0);
@@ -3854,7 +3855,19 @@ function viewStudio(preview) {
     $('#games').innerHTML = r.games.length ? r.games.map(g => `<button class="btn sec" data-d="${esc(g.dir)}">${esc(g.title)}<span class="t3">${esc(g.engine)}</span></button>`).join('')
       : '<span class="t3" style="font-size:13px">ไม่เจอเกม RPG Maker ในโฟลเดอร์ Steam วางที่อยู่เองได้เลย</span>';
     $$('#games [data-d]').forEach(b => b.onclick = () => { $('#dir').value = b.dataset.d; $('#games').innerHTML = ''; detect(); }); };
+  // ดึงงานล่าสุดในคลังเข้าโปรเจกต์ก่อน: คนอื่นแปลต่อไว้ระหว่างที่เราไม่อยู่ จะไม่ต้องแปลซ้ำ
+  async function syncLib(r) {
+    if (!r || r.kind === 'unsupported') return 0;
+    const key = Lib.key({ steam_appid: r.steam_appid, engine: r.engine, title: r.title });
+    let lib; try { lib = await Lib.latest(key); } catch { return 0; }
+    if (!lib) return 0;
+    const res = await api('import', { dir: dir(), content: JSON.stringify(lib), only_better: true });
+    if (!res || !res.changed) return 0;
+    toast(res.new ? `ดึงงานจากคลังมา ${res.new.toLocaleString()} บรรทัด ที่คนอื่นแปลต่อไว้ ไม่ต้องแปลซ้ำ` : `อัปเดตจากคลัง ${res.changed.toLocaleString()} บรรทัด (คนเกลาไว้)`);
+    return res.changed;
+  }
   $('#go').onclick = async () => {
+    await syncLib(lastR).catch(() => {});
     if (be() === 'api' && !mock && !$('#key').value.trim()) { toast('ใส่ API key ก่อน (สมัครฟรีที่ openrouter.ai แล้วเติมเงินตามที่ใช้)'); return; }
     await api('translate', { dir: dir(), settings: { backend: be(), model: be() === 'api' ? apiModel() : model(),
       base_url: $('#base').value.trim() || 'https://openrouter.ai/api/v1', api_key: $('#key').value.trim() } });

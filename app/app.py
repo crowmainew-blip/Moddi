@@ -122,7 +122,7 @@ def act_detect(b):
         return {"kind": "unsupported", "engine": sup["engine"], "title": os.path.basename(os.path.normpath(b["dir"])),
                 "support": sup, "anticheat": safety.detect_anticheat(b["dir"])}
     proj = project.load(b["dir"])
-    out = {"kind": info["kind"], "title": info["title"], "engine": info["engine"], "glossary": proj.get("glossary", {}),
+    out = {"kind": info["kind"], "title": info["title"], "engine": info["engine"], "steam_appid": steam_appid(b["dir"]) or "", "glossary": proj.get("glossary", {}),
            "anticheat": safety.detect_anticheat(b["dir"]), "support": engines.support_for(info)}
     if info["kind"] == "unity":
         if "thai_fix" in proj:  # โปรเจกต์จากรุ่นก่อน: ปิดการจัดสระที่ทำให้สระหาย แล้วเขียนคำแปลใหม่
@@ -394,17 +394,22 @@ def act_import(b):
     # รวมแบบไม่ทับงานที่ดีกว่า: คนเกลา > พรีเมียม > แปลด่วน
     rank = {"f": 1, "p": 2, "h": 3}
     org = proj.setdefault("origin", {})
+    only_better = bool(b.get("only_better"))  # ดึงจากคลัง: เติมบรรทัดที่ยังไม่มี หรือที่คลังดีกว่าเท่านั้น
+    new = 0
     for k, v in list(hit.items()):
         o = mod["origin"].get(k, "f")
-        if k in proj["translations"] and rank.get(org.get(k, "f"), 1) > rank.get(o, 1):
+        mine = rank.get(org.get(k, "f"), 1)
+        if k in proj["translations"] and (mine > rank.get(o, 1) or (only_better and mine >= rank.get(o, 1))):
             del hit[k]
             continue
+        if k not in proj["translations"]:
+            new += 1
         proj["translations"][k] = v
         org[k] = o
     for k, v in mod["glossary"].items():
         proj["glossary"].setdefault(k, v)
     project.save(proj)
-    return {"msg": f"นำเข้า mod แล้ว ใช้ได้ {len(hit)} จาก {len(mod['entries'])} ข้อความ"
+    return {"new": new, "changed": len(hit), "msg": f"นำเข้า mod แล้ว ใช้ได้ {len(hit)} จาก {len(mod['entries'])} ข้อความ"
                    + (f" (ผู้แปล: {mod['translator']})" if mod["translator"] else "")}
 
 
