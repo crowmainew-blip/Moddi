@@ -4,3 +4,5 @@ build/
 dist/
 app/site/
 .vercel
+app/build.json
+latest.json

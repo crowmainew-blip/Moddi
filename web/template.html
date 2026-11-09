@@ -292,6 +292,9 @@
 .upl{display:flex;gap:24px;align-items:center;justify-content:space-between;padding:16px;border:1px solid var(--line2);border-radius:10px;background:var(--raised);margin-top:16px}
 .upl p{margin:4px 0 0;font-size:13px;max-width:60ch}.upl b{font-weight:500}
 @media (max-width:640px){.upl{flex-direction:column;align-items:stretch}}
+.updbar{background:var(--raised);border-bottom:1px solid var(--line2)}
+.updbar .in{max-width:1200px;margin:0 auto;padding:10px 24px;display:flex;gap:12px;align-items:center;font-size:14px}
+.updbar .in span{flex:1}.updbar .in svg{color:var(--brand-t,#b8a2f2)}
 </style>
 </head>
 <body>
@@ -306,6 +309,7 @@
   <div class="auth" id="auth"></div>
   <button class="linkbtn menubtn" id="menubtn" aria-label="เมนู"></button>
 </div></header>
+<div id="updbar" class="updbar hide"></div>
 <main id="app"></main>
 <footer><div class="in">
   <span>moddi · คำแปลทุกชิ้นเป็นผลงานของผู้แปลแต่ละท่าน · เราไม่แจกไฟล์เกม</span>
@@ -354,6 +358,7 @@ async function boot() {
   await Auth.init();
   await Lib.inject();
   route();
+  if (APP.mode === 'app') checkUpdate();
 }
 const bestTier = g => Math.min(...g.mods.map(m => m.tier));
 const isEasy = g => g.mods.some(m => m.tier === 1 && m.install === 'moddi');
@@ -476,6 +481,26 @@ const Lib = {
 };
 const loadModText = async m => String(m.file).startsWith('lib:') ? Lib.text(m.file.slice(4)) : (await fetch(m.file)).text();
 function dlText(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); }
+
+// ================================================================ อัปเดตแอป (moddi.exe เช็คเวอร์ชันใหม่จาก GitHub ทุกครั้งที่เปิด)
+async function checkUpdate() {
+  let r; try { r = await (await fetch('api/update_check', { method: 'POST', body: '{}' })).json(); } catch { return; }
+  if (!r || !r.available) return;
+  const bar = $('#updbar');
+  bar.innerHTML = `<div class="in">${icon('download')}<span>มี moddi เวอร์ชันใหม่ <span class="mono">v${esc(r.latest.version)} (${esc(r.latest.build)})</span></span>
+    <button class="btn pri" id="upd-go">อัปเดตเลย</button><button class="btn quiet" id="upd-x">ไว้ทีหลัง</button></div>`;
+  bar.classList.remove('hide');
+  $('#upd-x').onclick = () => bar.classList.add('hide');
+  $('#upd-go').onclick = async () => {
+    $('#upd-go').disabled = true; $('#upd-go').textContent = 'กำลังดาวน์โหลด';
+    try { const j = await (await fetch('api/update_apply', { method: 'POST', body: '{}' })).json();
+      if (j.error) throw new Error(j.error);
+      bar.querySelector('span').textContent = j.msg;
+      const wait = async () => { try { await fetch('api/progress', { method: 'POST', body: '{}' }); location.reload(); } catch { setTimeout(wait, 1500); } };
+      setTimeout(wait, 4000);
+    } catch (e) { toast(e.message); $('#upd-go').disabled = false; $('#upd-go').textContent = 'อัปเดตเลย'; }
+  };
+}
 
 // ================================================================ router
 function route() {

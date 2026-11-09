@@ -31,6 +31,9 @@ jobs:
           mkdir -p app/site
           cp web/site/index.html web/site/catalog.json app/site/
           cp -r web/site/mods app/site/
+          V=$(tr -d '[:space:]' < app/VERSION)
+          echo "{\"version\": \"$V\", \"build\": ${{ github.run_number }}}" > app/build.json
+          cp app/build.json latest.json
 
       - name: build moddi.exe
         run: pyinstaller --noconfirm moddi.spec
@@ -56,7 +59,9 @@ jobs:
           tag_name: v${{ steps.ver.outputs.v }}
           name: moddi v${{ steps.ver.outputs.v }}
           target_commitish: ${{ github.sha }}
-          files: dist/moddi.exe
+          files: |
+            dist/moddi.exe
+            latest.json
           body: |
             โหลด moddi.exe แล้วดับเบิลคลิกได้เลย ไม่ต้องลง Python
             ครั้งแรก Windows อาจเตือน "Windows protected your PC" ให้กด More info → Run anyway

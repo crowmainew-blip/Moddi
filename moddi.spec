@@ -1,7 +1,7 @@
 # PyInstaller: สร้าง moddi.exe ไฟล์เดียว (GitHub Actions ใช้ไฟล์นี้)
 from PyInstaller.utils.hooks import collect_all
 
-datas = [("app/site", "site"), ("app/fonts", "fonts")]
+datas = [("app/site", "site"), ("app/fonts", "fonts"), ("app/build.json", ".")]
 binaries, hidden = [], ["tkinter", "tkinter.filedialog"]
 for pkg in ("UnityPy", "TypeTreeGeneratorAPI", "texture2ddecoder", "etcpak", "astc_encoder", "fmod_toolkit", "archspec"):
     try:

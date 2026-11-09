@@ -811,6 +811,59 @@ def _log(text):
         pass
 
 
+# ---------------------------------------------------------------- อัปเดตตัวเอง (เฉพาะ moddi.exe)
+REPO = "crowmainew-blip/Moddi"
+LATEST = f"https://github.com/{REPO}/releases/latest/download/"
+
+
+def build_info():
+    try:
+        with open(os.path.join(HERE, "build.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"version": "dev", "build": 0}
+
+
+def act_update_check(_):
+    cur = build_info()
+    out = {"current": cur, "frozen": bool(FROZEN), "available": False}
+    if not FROZEN:
+        return out  # รันจากโค้ด ไม่ต้องอัปเดตตัวเอง
+    try:
+        req = urllib.request.Request(LATEST + "latest.json", headers={"User-Agent": "moddi"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            new = json.loads(r.read().decode("utf-8"))
+        out["latest"] = new
+        out["available"] = int(new.get("build", 0)) > int(cur.get("build", 0))
+    except Exception as e:
+        _log("update check: " + repr(e))
+    return out
+
+
+def act_update_apply(_):
+    if not FROZEN:
+        raise ValueError("อัปเดตอัตโนมัติใช้ได้กับ moddi.exe เท่านั้น")
+    import tempfile
+    exe = sys.executable
+    tmp = os.path.join(tempfile.gettempdir(), "moddi-new.exe")
+    req = urllib.request.Request(LATEST + "moddi.exe", headers={"User-Agent": "moddi"})
+    with urllib.request.urlopen(req, timeout=600) as r, open(tmp, "wb") as f:
+        shutil.copyfileobj(r, f)
+    if os.path.getsize(tmp) < 5_000_000:
+        raise ValueError("ดาวน์โหลดไฟล์อัปเดตไม่ครบ ลองใหม่อีกครั้ง")
+    bat = os.path.join(tempfile.gettempdir(), "moddi-update.bat")
+    with open(bat, "w", encoding="utf-8") as f:  # รอแอปเดิมปิด แล้ววางไฟล์ใหม่ทับ แล้วเปิดใหม่
+        f.write(f'@echo off\r\nchcp 65001 >nul\r\n:w\r\ntimeout /t 1 /nobreak >nul\r\n'
+                f'tasklist /fi "PID eq {os.getpid()}" | find "{os.getpid()}" >nul && goto w\r\n'
+                f'move /y "{tmp}" "{exe}" >nul\r\nstart "" "{exe}" --no-browser\r\ndel "%~f0"\r\n')
+    subprocess.Popen(["cmd", "/c", bat], creationflags=NO_WINDOW | getattr(subprocess, "DETACHED_PROCESS", 0))
+    threading.Timer(1.0, lambda: os._exit(0)).start()
+    return {"msg": "กำลังอัปเดต แอปจะเปิดใหม่เองในไม่กี่วินาที"}
+
+
+ACTIONS.update(update_check=act_update_check, update_apply=act_update_apply)
+
+
 def _browse_child():
     import tkinter as t
     import tkinter.filedialog as f
