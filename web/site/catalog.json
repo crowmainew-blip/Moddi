@@ -2,7 +2,8 @@
  "hub": {
   "name": "moddi",
   "promptpay": "0812345678",
-  "promptpay_name": "moddi (ตัวอย่าง)"
+  "promptpay_name": "moddi (ตัวอย่าง)",
+  "app_download_url": "https://github.com/crowmainew-blip/Moddi/releases/latest/download/moddi.exe"
  },
  "games": [
   {
