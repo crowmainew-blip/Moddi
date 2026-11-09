@@ -295,6 +295,13 @@
 .updbar{background:var(--raised);border-bottom:1px solid var(--line2)}
 .updbar .in{max-width:1200px;margin:0 auto;padding:10px 24px;display:flex;gap:12px;align-items:center;font-size:14px}
 .updbar .in span{flex:1}.updbar .in svg{color:var(--brand-t,#b8a2f2)}
+.avatar.sm{width:24px;height:24px;font-size:11px;margin:0}
+.vb{display:inline-flex;margin-left:6px;color:var(--brand-t,#b8a2f2);vertical-align:-2px}
+.glist{display:grid}.grow{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 0;border-top:1px solid var(--line);color:inherit;text-decoration:none}
+.grow:first-child{border-top:0}.grow:hover b{text-decoration:underline}.grow .gt{display:grid;min-width:0}.grow .gt span{font-size:13px}
+.contrib h4{margin:20px 0 10px}.people{display:flex;flex-wrap:wrap;gap:8px}
+.person{display:inline-flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border:1px solid var(--line2);border-radius:999px;color:inherit;text-decoration:none;font-size:13px}
+.person:hover{border-color:var(--t3)}
 </style>
 </head>
 <body>
@@ -502,6 +509,82 @@ async function checkUpdate() {
   };
 }
 
+
+// ================================================================ โปรไฟล์ผู้ใช้ + หน้าผู้แปลสาธารณะ
+const Profiles = {
+  cache: {},
+  async get(uid) {
+    if (!uid) return null;
+    if (this.cache[uid]) return this.cache[uid];
+    let p = null;
+    if (Auth.demo) p = (store.get('demoProfiles') || {})[uid] || null;
+    else { const { data } = await Auth.client.from('profiles').select('*').eq('user_id', uid).maybeSingle(); p = data; }
+    return (this.cache[uid] = p);
+  },
+  async save(fields) {
+    const uid = Auth.user.id, row = { ...fields, updated_at: new Date().toISOString() };
+    if (Auth.demo) { const all = store.get('demoProfiles') || {}; all[uid] = { ...(all[uid] || { user_id: uid, verified: false }), ...row }; store.set('demoProfiles', all); }
+    else {
+      const { data: ex } = await Auth.client.from('profiles').select('user_id').eq('user_id', uid).maybeSingle();
+      const q = ex ? Auth.client.from('profiles').update(row).eq('user_id', uid) : Auth.client.from('profiles').insert({ user_id: uid, ...fields });
+      const { error } = await q; if (error) throw new Error(error.message);
+    }
+    delete this.cache[uid];
+  },
+  async uploads(filter) {  // filter: {user_id} หรือ {game_key}
+    if (Auth.demo) return (store.get('lib:index') || []).filter(r => Object.entries(filter).every(([k, v]) => r[k] === v));
+    let q = Auth.client.from('library_uploads').select('user_id,user_name,game_key,title,engine,steam_appid,lines_added,total,fast,premium,human,created_at').order('created_at', { ascending: false }).limit(1000);
+    for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+    const { data } = await q; return data || [];
+  },
+  // รวมงานของแต่ละคนในเกมเดียว หรือรวมเกมของคนคนเดียว
+  byUser(rows) {
+    const m = {}; for (const r of rows) { const x = m[r.user_id] || (m[r.user_id] = { user_id: r.user_id, name: r.user_name, lines: 0, uploads: 0, last: r.created_at });
+      x.lines += r.lines_added || 0; x.uploads++; if (r.created_at > x.last) { x.last = r.created_at; x.name = r.user_name; } }
+    return Object.values(m).sort((a, b) => b.lines - a.lines);
+  },
+  byGame(rows) {
+    const m = {}; for (const r of rows) { const x = m[r.game_key] || (m[r.game_key] = { key: r.game_key, title: r.title, engine: r.engine, steam_appid: r.steam_appid, lines: 0, uploads: 0, last: r.created_at });
+      x.lines += r.lines_added || 0; x.uploads++; if (r.created_at > x.last) x.last = r.created_at; }
+    return Object.values(m).sort((a, b) => b.last.localeCompare(a.last));
+  },
+};
+const avatarHtml = (p, size = '') => `<span class="avatar ${size}">${p && p.avatar_url ? `<img src="${esc(p.avatar_url)}" alt="" referrerpolicy="no-referrer">` : esc(((p && p.display_name) || '?').slice(0, 1).toUpperCase())}</span>`;
+const gameHref = key => { const g = CAT.games.find(x => x.mods.some(m => m.id === 'lib-' + key)); return g ? '#game-' + encodeURIComponent(g.id) : '#home'; };
+const fmtDate = d => d ? new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) : '';
+
+function gameRows(games) {
+  return games.length ? `<div class="glist">${games.map(g => `<a class="grow" href="${gameHref(g.key)}">
+      <span class="gt"><b>${esc(g.title)}</b><span class="t3">${esc(g.engine || '')} · อัพ ${g.uploads} ครั้ง · ล่าสุด ${fmtDate(g.last)}</span></span>
+      <span class="mono">${g.lines.toLocaleString()} บรรทัด</span></a>`).join('')}</div>`
+    : '<div class="empty" style="border:0;padding:24px 0"><b>ยังไม่มีผลงานในคลัง</b>แปลเกมในแอป moddi แล้วกดอัพลงคลัง</div>';
+}
+
+async function viewTranslator(uid) {
+  page(`<div class="empty" style="margin-top:64px;border:0">กำลังโหลด</div>`);
+  const [p, rows] = await Promise.all([Profiles.get(uid).catch(() => null), Profiles.uploads({ user_id: uid }).catch(() => [])]);
+  if (!p && !rows.length) return page(`<a class="back" href="#home">${icon('arrow-left')}คลังเกม</a><div class="empty"><b>ไม่พบผู้ใช้นี้</b></div>`);
+  const prof = p || { display_name: rows[0].user_name };
+  const games = Profiles.byGame(rows), total = games.reduce((a, g) => a + g.lines, 0);
+  const canTip = prof.verified && prof.promptpay;
+  page(`<a class="back" href="#home">${icon('arrow-left')}คลังเกม</a>
+    <div class="acct">
+      <aside class="panel who-card">${avatarHtml(prof)}
+        <h2>${esc(prof.display_name)}${prof.verified ? `<span title="ยืนยันตัวตนแล้ว" class="vb">${icon('badge-check')}</span>` : ''}</h2>
+        <span class="pill">${prof.verified ? 'ผู้แปลที่ยืนยันแล้ว' : 'ผู้ร่วมแปล'}</span>
+        ${prof.bio ? `<p class="t2" style="font-size:14px;margin:16px 0 0;white-space:pre-line">${esc(prof.bio)}</p>` : ''}
+        <dl class="kv" style="margin-top:20px"><dt>แปลไปแล้ว</dt><dd class="mono">${total.toLocaleString()} บรรทัด</dd><dt>เกม</dt><dd class="mono">${games.length}</dd>
+          <dt>เริ่มเมื่อ</dt><dd>${fmtDate(prof.created_at || (rows[rows.length - 1] || {}).created_at)}</dd></dl>
+        ${prof.page_url || canTip ? `<div class="actions">${prof.page_url ? `<a class="btn quiet" href="${esc(safeUrl(prof.page_url))}" target="_blank" rel="noopener">เพจผู้แปล${icon('external-link')}</a>` : ''}
+          ${canTip ? `<button class="btn pri" id="tip">${icon('heart')}สนับสนุน</button>` : ''}</div>` : ''}
+        <div id="tipbox"></div>
+      </aside>
+      <div class="panel"><div class="ptitle">ผลงานในคลัง</div>${gameRows(games)}</div>
+    </div>`);
+  if (canTip) $('#tip').onclick = () => { const box = $('#tipbox'); if (box.innerHTML) { box.innerHTML = ''; return; }
+    box.innerHTML = supportBox(prof.display_name, 'เงินเข้าพร้อมเพย์ของผู้แปลโดยตรงทั้งหมด คลังไม่หักส่วนแบ่ง', 'u'); wireQR(box, prof.promptpay, 'u'); };
+}
+
 // ================================================================ router
 function route() {
   const h = (location.hash.slice(1) || 'home');
@@ -511,6 +594,7 @@ function route() {
   window.scrollTo(0, 0);
   if (h.startsWith('game-')) return viewGame(decodeURIComponent(h.slice(5)));
   if (h.startsWith('refine-')) return viewRefineMod(decodeURIComponent(h.slice(7)));
+  if (h.startsWith('u-')) return viewTranslator(decodeURIComponent(h.slice(2)));
   ({ install: viewInstall, translate: viewTranslate, 'studio-preview': () => viewStudio(true), translators: viewTranslators,
      support: viewSupport, account: viewAccount }[h] || viewHome)();
 }
@@ -618,7 +702,8 @@ function modBlock(m) {
   const pageLink = t.page_url ? `<a class="btn quiet" href="${esc(safeUrl(t.page_url))}" target="_blank" rel="noopener">เพจผู้แปล${icon('external-link')}</a>` : '';
   const qr = `<div data-qr="${id}"></div>`;
 
-  const comm = m.community ? `<div class="note ok">${icon('users')}<span>แปลร่วมกัน ${m.contributors} คน · อัพ ${m.versions} ครั้ง · ล่าสุดโดย ${esc(m.last_by || '-')} ยังแปลไม่ครบก็ติดตั้งเล่นได้ บรรทัดที่ยังไม่แปลจะเป็นภาษาเดิม</span></div>` : '';
+  const comm = m.community ? `<div class="note ok">${icon('users')}<span>แปลร่วมกัน ${m.contributors} คน · อัพ ${m.versions} ครั้ง · ยังแปลไม่ครบก็ติดตั้งเล่นได้ บรรทัดที่ยังไม่แปลจะเป็นภาษาเดิม</span></div>
+    <div class="contrib" data-contrib="${id}"></div>` : '';
   const join = m.community ? `<button class="btn quiet" data-join="${id}">${icon('download')}ร่วมแปลต่อ</button>` : '';
   if (m.community && m.install !== 'moddi') return `<div class="panel mod">${head}${comm}${steps}
       <div class="actions"><button class="btn pri" data-join="${id}">${icon('download')}ดาวน์โหลดไฟล์แปล</button><span class="spacer"></span>${refine}</div></div>`;
@@ -647,6 +732,12 @@ function wireMod(m) {
     wireQR(box, m.translator.promptpay, 'm-' + m.id);
   };
   if (m.tier === 1 && m.install === 'moddi') wireInstaller(m);
+  const cb = document.querySelector(`[data-contrib="${CSS.escape(m.id)}"]`);
+  if (cb) Profiles.uploads({ game_key: m.file.slice(4) }).then(rows => {
+    const ppl = Profiles.byUser(rows); if (!ppl.length) return;
+    cb.innerHTML = `<h4>คนที่ช่วยแปล</h4><div class="people">${ppl.slice(0, 12).map(u => `<a href="#u-${encodeURIComponent(u.user_id)}" class="person">${avatarHtml({ display_name: u.name }, 'sm')}<span>${esc(u.name || '-')}</span><span class="mono t3">${u.lines.toLocaleString()}</span></a>`).join('')}
+      ${ppl.length > 12 ? `<span class="t3">และอีก ${ppl.length - 12} คน</span>` : ''}</div>`;
+  }).catch(() => {});
   $$(`[data-join="${CSS.escape(m.id)}"]`).forEach(b => b.onclick = async () => {
     try { dlText((m.file.slice(4) || 'game') + '.moddi.json', await loadModText(m));
       toast('ดาวน์โหลดแล้ว เปิดแอป moddi กด "นำเข้าไฟล์ mod" แปลต่อ แล้วกด "อัพลงคลัง"'); }
@@ -1340,6 +1431,8 @@ const Auth = {
   set(u) {
     this.user = u ? { id: u.id, name: u.user_metadata?.full_name || u.name || u.email, email: u.email, avatar: u.user_metadata?.avatar_url || null } : null;
     this.render();
+    if (this.user) Profiles.get(this.user.id).then(p => { if (p && this.user && p.user_id === this.user.id) {
+      this.user.name = p.display_name || this.user.name; this.user.avatar = p.avatar_url || this.user.avatar; this.user.verified = p.verified; this.render(); } }).catch(() => {});
   },
   render() {
     const u = this.user;
@@ -1384,37 +1477,62 @@ const Auth = {
 async function viewAccount() {
   if (!Auth.user) { page(`<div class="empty" style="margin-top:64px"><b>ยังไม่ได้เข้าสู่ระบบ</b><button class="btn pri" id="li" style="margin-top:16px">เข้าสู่ระบบ</button></div>`);
     $('#li').onclick = () => Auth.open('account'); return; }
-  const u = Auth.user, req = await Auth.loadRequest().catch(() => null);
+  const u = Auth.user;
+  page(`<div class="empty" style="margin-top:64px;border:0">กำลังโหลด</div>`);
+  const [prof0, req, rows] = await Promise.all([Profiles.get(u.id).catch(() => null), Auth.loadRequest().catch(() => null), Profiles.uploads({ user_id: u.id }).catch(() => [])]);
+  const prof = prof0 || { display_name: u.name, avatar_url: u.avatar, verified: false };
+  const games = Profiles.byGame(rows), total = games.reduce((a, g) => a + g.lines, 0);
   const status = !req ? '' : req.status === 'approved' ? 'ยืนยันตัวตนแล้ว' : req.status === 'rejected' ? 'ไม่ผ่าน ติดต่อแอดมิน' : 'รอทีมงานตรวจ';
   page(`<div class="acct">
-    <aside class="panel who-card">
-      <span class="avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(u.name.slice(0, 1).toUpperCase())}</span>
-      <h2>${esc(u.name)}</h2><div class="t3" style="font-size:13px">${esc(u.email || '')}</div>
-      <span class="pill">${req && req.status === 'approved' ? icon('badge-check') + 'ผู้แปล' : 'ผู้เล่น'}</span>
+    <aside class="panel who-card">${avatarHtml(prof)}
+      <h2>${esc(prof.display_name)}${prof.verified ? `<span class="vb" title="ยืนยันตัวตนแล้ว">${icon('badge-check')}</span>` : ''}</h2>
+      <div class="t3" style="font-size:13px">${esc(u.email || '')} · เห็นแค่คุณ</div>
+      <span class="pill">${prof.verified ? 'ผู้แปลที่ยืนยันแล้ว' : 'ผู้ร่วมแปล'}</span>
+      <dl class="kv" style="margin-top:20px"><dt>แปลไปแล้ว</dt><dd class="mono">${total.toLocaleString()} บรรทัด</dd><dt>เกม</dt><dd class="mono">${games.length}</dd><dt>อัพ</dt><dd class="mono">${rows.length} ครั้ง</dd></dl>
       ${Auth.demo ? '<p class="t3" style="font-size:12px;margin:16px 0 0">บัญชีตัวอย่าง ข้อมูลเก็บไว้ในเบราว์เซอร์นี้เท่านั้น</p>' : ''}
-      <div class="actions"><button class="btn quiet" id="so">${icon('log-out')}ออกจากระบบ</button></div>
+      <div class="actions"><a class="btn sec" href="#u-${encodeURIComponent(u.id)}">${icon('user')}ดูหน้าสาธารณะ</a><button class="btn quiet" id="so">${icon('log-out')}ออกจากระบบ</button></div>
     </aside>
-    <div class="panel">
-      <div class="ptitle"><span>ยืนยันตัวตนผู้แปล</span>${status ? `<span class="pill" style="margin:0">${status}</span>` : ''}</div>
-      <p class="t2" style="font-size:14px;margin:0 0 24px">ยืนยันว่าเป็นเจ้าของเพจแปล เพื่อรับป้ายยืนยันตัวตน ฝากไฟล์ในคลัง และเปิดปุ่มสนับสนุนที่โอนเข้าพร้อมเพย์ของคุณโดยตรง ทีมงานจะทักไปที่เพจเพื่อยืนยันอีกครั้ง</p>
-      <form id="rf" class="formgrid">
-        <label class="f">ชื่อเพจหรือทีมแปล<input type="text" name="page_name" required value="${esc(req?.page_name || '')}"></label>
-        <label class="f">ลิงก์เพจ<input type="text" name="page_url" required placeholder="https://" value="${esc(req?.page_url || '')}"></label>
-        <label class="f full">เกมที่แปล<textarea name="games" rows="3" placeholder="บรรทัดละเกม">${esc(req?.games || '')}</textarea></label>
-        <label class="f">พร้อมเพย์สำหรับรับเงินสนับสนุน<input type="text" name="promptpay" inputmode="numeric" placeholder="เบอร์โทรหรือเลขบัตรประชาชน" value="${esc(req?.promptpay || '')}"></label>
-        <p class="t3" style="font-size:12px;margin:28px 0 0">ไม่ต้องให้เลขบัญชีธนาคาร พร้อมเพย์จะแสดงเป็น QR บนหน้าเกมของคุณเท่านั้น</p>
-        <div class="full actions" style="margin-top:8px"><button class="btn pri" type="submit">${req ? 'ส่งข้อมูลใหม่' : 'ส่งคำขอยืนยัน'}</button><span id="rmsg" class="t2" style="font-size:13px"></span></div>
-      </form>
+    <div style="display:grid;gap:24px;min-width:0">
+      <div class="panel">
+        <div class="ptitle">โปรไฟล์ <span class="t3" style="font-size:12px;font-weight:400">· ทุกคนเห็นข้อมูลในส่วนนี้</span></div>
+        <form id="pf" class="formgrid">
+          <label class="f">ชื่อที่แสดง<input type="text" name="display_name" required maxlength="60" value="${esc(prof.display_name || '')}"></label>
+          <label class="f">ลิงก์เพจหรือช่องของคุณ<input type="text" name="page_url" placeholder="https://" value="${esc(prof.page_url || '')}"></label>
+          <label class="f full">แนะนำตัว<textarea name="bio" rows="3" maxlength="500" placeholder="แปลเกมแนวไหน ทีมไหน">${esc(prof.bio || '')}</textarea></label>
+          <label class="f">พร้อมเพย์รับเงินสนับสนุน<input type="text" name="promptpay" inputmode="numeric" placeholder="เบอร์โทร เลขบัตร หรือ e-Wallet" value="${esc(prof.promptpay || '')}"></label>
+          <p class="t3" style="font-size:12px;margin:28px 0 0">ปุ่มสนับสนุนบนหน้าของคุณจะเปิดหลังยืนยันตัวตนผู้แปลแล้ว เงินเข้าพร้อมเพย์นี้โดยตรง</p>
+          <div class="full actions" style="margin-top:8px"><button class="btn pri" type="submit">บันทึกโปรไฟล์</button><span id="pmsg" class="t2" style="font-size:13px"></span></div>
+        </form>
+      </div>
+      <div class="panel"><div class="ptitle">ผลงานของฉัน</div>${gameRows(games)}</div>
+      <div class="panel">
+        <div class="ptitle"><span>ยืนยันตัวตนผู้แปล</span>${status ? `<span class="pill" style="margin:0">${status}</span>` : ''}</div>
+        <p class="t2" style="font-size:14px;margin:0 0 24px">มีเพจแปลเกมอยู่แล้ว ยืนยันว่าเป็นเจ้าของเพจ เพื่อรับป้ายยืนยัน ฝากไฟล์ในคลัง และเปิดปุ่มสนับสนุน ทีมงานจะทักไปที่เพจเพื่อยืนยันอีกครั้ง</p>
+        <form id="rf" class="formgrid">
+          <label class="f">ชื่อเพจหรือทีมแปล<input type="text" name="page_name" required value="${esc(req?.page_name || '')}"></label>
+          <label class="f">ลิงก์เพจ<input type="text" name="page_url" required placeholder="https://" value="${esc(req?.page_url || prof.page_url || '')}"></label>
+          <label class="f full">เกมที่แปล<textarea name="games" rows="3" placeholder="บรรทัดละเกม">${esc(req?.games || '')}</textarea></label>
+          <div class="full actions" style="margin-top:8px"><button class="btn sec" type="submit">${req ? 'ส่งข้อมูลใหม่' : 'ส่งคำขอยืนยัน'}</button><span id="rmsg" class="t2" style="font-size:13px"></span></div>
+        </form>
+      </div>
     </div>
   </div>`);
   $('#so').onclick = () => Auth.signOut();
+  $('#pf').onsubmit = async e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    d.display_name = d.display_name.trim(); d.page_url = d.page_url.trim() || null; d.bio = d.bio.trim() || null;
+    d.promptpay = d.promptpay.replace(/\D/g, '') || null;
+    if (d.page_url && !/^https?:\/\//.test(d.page_url)) { $('#pmsg').textContent = 'ลิงก์ต้องขึ้นต้นด้วย https://'; return; }
+    if (d.promptpay && ![10, 13, 15].includes(d.promptpay.length)) { $('#pmsg').textContent = 'พร้อมเพย์ต้องเป็น 10, 13 หรือ 15 หลัก'; return; }
+    try { await Profiles.save(d); Auth.user.name = d.display_name; Auth.render(); toast('บันทึกโปรไฟล์แล้ว'); viewAccount(); }
+    catch (err) { $('#pmsg').textContent = err.message; }
+  };
   $('#rf').onsubmit = async e => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target));
     if (!/^https?:\/\//.test(d.page_url)) { $('#rmsg').textContent = 'ลิงก์เพจต้องขึ้นต้นด้วย https://'; return; }
-    const pp = d.promptpay.replace(/\D/g, '');
-    if (pp && ![10, 13, 15].includes(pp.length)) { $('#rmsg').textContent = 'พร้อมเพย์ต้องเป็นเบอร์ 10 หลัก หรือเลข 13 หลัก'; return; }
-    try { await Auth.saveRequest({ ...d, promptpay: pp }); viewAccount(); toast('ส่งคำขอแล้ว ทีมงานจะติดต่อกลับทางเพจ'); }
+    try { await Auth.saveRequest({ ...d, promptpay: prof.promptpay || '' }); viewAccount(); toast('ส่งคำขอแล้ว ทีมงานจะติดต่อกลับทางเพจ'); }
     catch (err) { $('#rmsg').textContent = err.message; }
   };
 }

@@ -60,3 +60,7 @@
 - ทุกการอัพเป็นแถวใหม่ในตาราง `library_uploads` ถ้ามีคนอัพของเสีย: Supabase → Table editor → ตั้ง `hidden = true` ที่แถวนั้น หน้าเว็บจะกลับไปใช้ฉบับก่อนหน้าทันที
 - ล็อกอินจากแอปบนคอม: ใน Supabase → Authentication → URL Configuration → Redirect URLs เพิ่ม `http://127.0.0.1:8765/**`
 - ยังไม่ได้ใส่ supabase_url ใน catalog.json = โหมดตัวอย่าง ไฟล์ที่อัพเก็บในเบราว์เซอร์เครื่องนั้นเท่านั้น
+
+## โปรไฟล์ผู้ใช้และหน้าผู้แปล
+- รัน `supabase-profiles.sql` ใน SQL Editor หนึ่งครั้ง (หลัง supabase-setup.sql)
+- อนุมัติผู้แปล: Table editor → translator_requests → เปลี่ยน status เป็น `approved` → ผู้ใช้คนนั้นได้ป้ายยืนยัน + ปุ่มสนับสนุนบนหน้าของเขาอัตโนมัติ
