@@ -1,8 +1,7 @@
 name: build moddi.exe
 
+# ไม่ build เองตอน push แล้ว กด Run workflow ใน Actions เองเท่านั้น (กัน release ถี่)
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 env:
